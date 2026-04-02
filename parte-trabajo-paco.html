@@ -795,7 +795,8 @@ function validateForm() {
       }
     }
 
-    if (!horas.value || parseFloat(horas.value) <= 0) { gHoras.classList.add('field-error'); valid = false; }
+    const horasInput = document.getElementById(`horas-${id}`);
+    if (!horasInput || !horasInput.value || parseFloat(horasInput.value) <= 0) { gHoras.classList.add('field-error'); valid = false; }
     else { gHoras.classList.remove('field-error'); }
   });
 
