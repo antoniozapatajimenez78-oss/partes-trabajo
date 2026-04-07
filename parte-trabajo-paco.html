@@ -628,14 +628,17 @@ async function loadCalendario(trabajador) {
     const cell = document.createElement('div');
     cell.className = 'cal-day';
     cell.textContent = dia;
-    if (diaSemana === 0) { cell.classList.add('sunday'); }
-    else if (diasConParte.has(fechaStr)) {
+    if (diaSemana === 0 && !diasConParte.has(fechaStr)) {
+      cell.classList.add('sunday');
+    } else if (diasConParte.has(fechaStr)) {
       cell.classList.add('done');
       cell.title = 'Pulsa para ver el parte';
       cell.addEventListener('click', () => showDayDetail(trabajador, fechaStr));
+    } else if (esFuturo) {
+      cell.classList.add('future');
+    } else {
+      cell.classList.add('pending');
     }
-    else if (esFuturo) { cell.classList.add('future'); }
-    else { cell.classList.add('pending'); }
     if (fechaStr === hoyStr) cell.classList.add('today');
     grid.appendChild(cell);
   }
