@@ -168,7 +168,7 @@
       <div class="card-title"><span class="icon">👤</span> Trabajador y Fecha</div>
       <div class="field-group">
         <label>Encargado</label>
-        <div style="padding:0.7rem 1rem;background:var(--cream);border:1.5px solid var(--border);border-radius:10px;font-weight:600;font-size:0.95rem;color:var(--brown-dark)">PACO</div>
+        <div id="encargado-nombre-display" style="padding:0.7rem 1rem;background:var(--cream);border:1.5px solid var(--border);border-radius:10px;font-weight:600;font-size:0.95rem;color:var(--brown-dark)">—</div>
       </div>
       <div class="field-group" id="g-fecha">
         <label>Fecha <span class="req">*</span></label>
@@ -451,7 +451,7 @@ function removeTarea(n) {
 function validateForm() {
   let valid = true;
 
-  // Encargado fijo: PACO
+  // Encargado fijo por PIN
 
   // Fecha
   const gF = document.getElementById('g-fecha');
@@ -510,8 +510,8 @@ function buildParteData() {
   });
 
   return {
-    trabajadores: ['PACO'],
-    trabajador: 'PACO',
+    trabajadores: [ENCARGADO_NOMBRE],
+    trabajador: ENCARGADO_NOMBRE,
     fecha: document.getElementById('fecha').value,
     tareas,
     observaciones_generales: document.getElementById('observaciones').value.trim() || null,
@@ -815,6 +815,7 @@ async function checkPin() {
       document.getElementById('pinScreen').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
       document.getElementById('encargadoSubtitle').textContent = `Registro diario de jornada · ${ENCARGADO_NOMBRE}`;
+      document.getElementById('encargado-nombre-display').textContent = ENCARGADO_NOMBRE;
       await Promise.all([loadTareas(), loadFincasFromDB()]);
       await loadCalendario();
       addTarea();
