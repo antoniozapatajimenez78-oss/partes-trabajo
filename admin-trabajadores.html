@@ -222,58 +222,62 @@
     <div class="header-left">
       <div>
         <div class="header-tag">⚙️ Admin</div>
-        <h1>Gestión de Trabajadores</h1>
+        <h1>Panel de Administración</h1>
       </div>
     </div>
     <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
   </div>
 
-  <div class="content">
+  <!-- TABS -->
+  <div style="display:flex;background:white;border-bottom:2px solid var(--border);padding:0 1.5rem">
+    <div id="tab-trabajadores-btn" style="padding:0.9rem 1.2rem;font-weight:600;font-size:0.88rem;cursor:pointer;border-bottom:3px solid var(--accent);margin-bottom:-2px;color:var(--accent)" onclick="switchTab('trabajadores')">👥 Trabajadores</div>
+    <div id="tab-tareas-btn" style="padding:0.9rem 1.2rem;font-weight:600;font-size:0.88rem;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;color:var(--text-mid)" onclick="switchTab('tareas')">📋 Tareas</div>
+  </div>
 
-    <!-- Stats -->
+  <!-- TAB TRABAJADORES -->
+  <div id="tab-trabajadores" class="content">
     <div class="stats">
-      <div class="stat-card">
-        <div class="stat-num green" id="stat-activos">—</div>
-        <div class="stat-label">Activos</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num red" id="stat-bajas">—</div>
-        <div class="stat-label">Bajas</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num amber" id="stat-total">—</div>
-        <div class="stat-label">Total</div>
-      </div>
+      <div class="stat-card"><div class="stat-num green" id="stat-activos">—</div><div class="stat-label">Activos</div></div>
+      <div class="stat-card"><div class="stat-num red" id="stat-bajas">—</div><div class="stat-label">Bajas</div></div>
+      <div class="stat-card"><div class="stat-num amber" id="stat-total">—</div><div class="stat-label">Total</div></div>
     </div>
-
-    <!-- Mensaje -->
     <div class="msg" id="msg"></div>
-
-    <!-- Añadir trabajador -->
     <div class="card">
       <div class="card-title">➕ Añadir trabajador</div>
       <div class="form-row">
-        <div class="field-group">
-          <label>Nombre completo</label>
-          <input type="text" id="newNombre" placeholder="Nombre...">
-        </div>
-        <div class="field-group">
-          <label>Fecha de alta</label>
-          <input type="date" id="newFechaAlta">
-        </div>
+        <div class="field-group"><label>Nombre completo</label><input type="text" id="newNombre" placeholder="Nombre..."></div>
+        <div class="field-group"><label>Fecha de alta</label><input type="date" id="newFechaAlta"></div>
         <button class="btn-add" id="btnAdd" onclick="addTrabajador()">+ Añadir</button>
       </div>
     </div>
-
-    <!-- Lista -->
     <div class="card">
       <div class="card-title">👥 Trabajadores</div>
       <input type="text" class="search-box" id="searchBox" placeholder="Buscar trabajador..." oninput="filterWorkers()">
       <div id="workerList"><div class="loading">Cargando...</div></div>
     </div>
-
   </div>
-</div>
+
+  <!-- TAB TAREAS -->
+  <div id="tab-tareas" class="content" style="display:none">
+    <div class="stats">
+      <div class="stat-card"><div class="stat-num green" id="stat-tareas-activas">—</div><div class="stat-label">Activas</div></div>
+      <div class="stat-card"><div class="stat-num red" id="stat-tareas-inactivas">—</div><div class="stat-label">Inactivas</div></div>
+      <div class="stat-card"><div class="stat-num amber" id="stat-tareas-total">—</div><div class="stat-label">Total</div></div>
+    </div>
+    <div class="msg" id="msg-tareas"></div>
+    <div class="card">
+      <div class="card-title">➕ Nueva tarea</div>
+      <div class="form-row">
+        <div class="field-group"><label>Nombre de la tarea</label><input type="text" id="newTarea" placeholder="Nombre de la tarea..."></div>
+        <button class="btn-add" id="btnAddTarea" onclick="addTarea()">+ Añadir</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 Tareas del parte de jornada</div>
+      <input type="text" class="search-box" id="searchTareas" placeholder="Buscar tarea..." oninput="filterTareas()">
+      <div id="tareasList"><div class="loading">Cargando...</div></div>
+    </div>
+  </div>
 
 <script>
 const SUPABASE_URL = 'https://jecqfntpvzwipjcleqbl.supabase.co';
@@ -281,6 +285,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const PASSWORD = 'agroinver2026';
 
 let allWorkers = [];
+let allTareas = [];
 
 // ── LOGIN ──
 function checkPassword() {
@@ -289,6 +294,7 @@ function checkPassword() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('panel').classList.add('show');
     loadWorkers();
+    loadTareas();
   } else {
     document.getElementById('loginError').style.display = 'block';
     document.getElementById('passwordInput').value = '';
@@ -303,6 +309,18 @@ function logout() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('panel').classList.remove('show');
   document.getElementById('passwordInput').value = '';
+}
+
+// ── TABS ──
+function switchTab(tab) {
+  document.getElementById('tab-trabajadores').style.display = tab === 'trabajadores' ? 'block' : 'none';
+  document.getElementById('tab-tareas').style.display = tab === 'tareas' ? 'block' : 'none';
+  document.getElementById('tab-trabajadores-btn').style.cssText = tab === 'trabajadores'
+    ? 'padding:0.9rem 1.2rem;font-weight:600;font-size:0.88rem;cursor:pointer;border-bottom:3px solid var(--accent);margin-bottom:-2px;color:var(--accent)'
+    : 'padding:0.9rem 1.2rem;font-weight:600;font-size:0.88rem;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;color:var(--text-mid)';
+  document.getElementById('tab-tareas-btn').style.cssText = tab === 'tareas'
+    ? 'padding:0.9rem 1.2rem;font-weight:600;font-size:0.88rem;cursor:pointer;border-bottom:3px solid var(--accent);margin-bottom:-2px;color:var(--accent)'
+    : 'padding:0.9rem 1.2rem;font-weight:600;font-size:0.88rem;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;color:var(--text-mid)';
 }
 
 // ── SUPABASE ──
@@ -400,12 +418,12 @@ async function addTrabajador() {
       body: JSON.stringify({ nombre, fecha_alta: fechaAlta })
     });
     if (!res.ok) throw new Error('Error al añadir');
-    showMsg(`✅ ${nombre} añadido correctamente`, 'success');
+    showMsg('msg', `✅ ${nombre} añadido correctamente`, 'success');
     document.getElementById('newNombre').value = '';
     document.getElementById('newFechaAlta').value = '';
     await loadWorkers();
   } catch(e) {
-    showMsg('Error al añadir trabajador', 'error');
+    showMsg('msg', 'Error al añadir trabajador', 'error');
   }
   btn.disabled = false; btn.textContent = '+ Añadir';
 }
@@ -414,39 +432,96 @@ async function addTrabajador() {
 async function darDeBaja(id, nombre) {
   const fecha = prompt(`Fecha de baja para ${nombre} (YYYY-MM-DD):`, new Date().toISOString().split('T')[0]);
   if (!fecha) return;
-
   try {
-    const res = await sbFetch(`trabajadores?id=eq.${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ fecha_baja: fecha })
-    });
+    const res = await sbFetch(`trabajadores?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ fecha_baja: fecha }) });
     if (!res.ok) throw new Error();
-    showMsg(`✅ ${nombre} dado de baja el ${fecha}`, 'success');
+    showMsg('msg', `✅ ${nombre} dado de baja el ${fecha}`, 'success');
     await loadWorkers();
-  } catch(e) {
-    showMsg('Error al dar de baja', 'error');
-  }
+  } catch(e) { showMsg('msg', 'Error al dar de baja', 'error'); }
 }
 
 // ── REACTIVAR ──
 async function reactivar(id, nombre) {
   if (!confirm(`¿Reactivar a ${nombre}?`)) return;
   try {
-    const res = await sbFetch(`trabajadores?id=eq.${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ fecha_baja: null })
-    });
+    const res = await sbFetch(`trabajadores?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ fecha_baja: null }) });
     if (!res.ok) throw new Error();
-    showMsg(`✅ ${nombre} reactivado correctamente`, 'success');
+    showMsg('msg', `✅ ${nombre} reactivado correctamente`, 'success');
     await loadWorkers();
-  } catch(e) {
-    showMsg('Error al reactivar', 'error');
-  }
+  } catch(e) { showMsg('msg', 'Error al reactivar', 'error'); }
 }
 
-// ── MSG ──
-function showMsg(text, type) {
-  const el = document.getElementById('msg');
+// ── TAREAS ──
+async function loadTareas() {
+  try {
+    const res = await sbFetch('tareas_trabajo?order=orden.asc,nombre.asc&select=*');
+    allTareas = await res.json();
+    renderTareas(allTareas);
+    const activas = allTareas.filter(t => t.activa).length;
+    document.getElementById('stat-tareas-activas').textContent = activas;
+    document.getElementById('stat-tareas-inactivas').textContent = allTareas.length - activas;
+    document.getElementById('stat-tareas-total').textContent = allTareas.length;
+  } catch(e) { showMsg('msg-tareas', 'Error cargando tareas', 'error'); }
+}
+
+function renderTareas(tareas) {
+  const list = document.getElementById('tareasList');
+  if (!tareas.length) { list.innerHTML = '<div class="loading">No hay tareas</div>'; return; }
+  list.innerHTML = tareas.map(t => `
+    <div class="worker-item">
+      <div class="worker-info">
+        <div class="worker-avatar" style="background:${t.activa ? '#4caf7d' : '#ccc'};font-size:0.7rem">${t.activa ? '✅' : '❌'}</div>
+        <div>
+          <div class="worker-name">${t.nombre}</div>
+          <div class="worker-dates">${t.activa ? 'Activa' : 'Inactiva'}</div>
+        </div>
+      </div>
+      <div>
+        ${t.activa
+          ? `<button class="btn-baja" onclick="toggleTarea('${t.id}', false)">Desactivar</button>`
+          : `<button class="btn-reactivar" onclick="toggleTarea('${t.id}', true)">Activar</button>`}
+      </div>
+    </div>`).join('');
+}
+
+function filterTareas() {
+  const q = document.getElementById('searchTareas').value.toLowerCase();
+  renderTareas(allTareas.filter(t => t.nombre.toLowerCase().includes(q)));
+}
+
+async function addTarea() {
+  const nombre = document.getElementById('newTarea').value.trim();
+  if (!nombre) { showMsg('msg-tareas', 'Introduce el nombre de la tarea', 'error'); return; }
+  const btn = document.getElementById('btnAddTarea');
+  btn.disabled = true; btn.textContent = 'Añadiendo...';
+  try {
+    const res = await sbFetch('tareas_trabajo', {
+      method: 'POST',
+      body: JSON.stringify({ nombre, orden: allTareas.length + 1, activa: true })
+    });
+    if (!res.ok) throw new Error();
+    showMsg('msg-tareas', `✅ Tarea "${nombre}" añadida`, 'success');
+    document.getElementById('newTarea').value = '';
+    await loadTareas();
+  } catch(e) { showMsg('msg-tareas', 'Error al añadir tarea', 'error'); }
+  btn.disabled = false; btn.textContent = '+ Añadir';
+}
+
+async function toggleTarea(id, activa) {
+  try {
+    const res = await sbFetch(`tareas_trabajo?id=eq.${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ activa })
+    });
+    if (!res.ok) throw new Error();
+    showMsg('msg-tareas', activa ? '✅ Tarea activada' : '✅ Tarea desactivada', 'success');
+    await loadTareas();
+  } catch(e) { showMsg('msg-tareas', 'Error al actualizar tarea', 'error'); }
+}
+
+function showMsg(id, text, type) {
+  const elId = id === 'msg-tareas' ? 'msg-tareas' : 'msg';
+  const el = document.getElementById(elId);
   el.textContent = text;
   el.className = `msg ${type} show`;
   setTimeout(() => el.classList.remove('show'), 4000);
