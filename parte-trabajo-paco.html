@@ -616,7 +616,6 @@ function newForm() {
   document.getElementById('successOverlay').classList.remove('show');
   document.getElementById('reviewOverlay').classList.remove('show');
   window._parteData = null;
-  loadTrabajadores();
   loadCalendario();
   clearForm();
 }
@@ -754,10 +753,7 @@ async function loadTrabajadores() {
 }
 
 // Update worker colors when date changes
-document.getElementById('fecha').addEventListener('change', () => {
-  state.trabajadores = [];
-  loadTrabajadores();
-});
+
 
 async function init() {
   state.trabajadores = ["PACO"];
