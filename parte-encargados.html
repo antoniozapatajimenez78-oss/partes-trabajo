@@ -241,14 +241,8 @@ let ENCARGADO_NOMBRE = '';
 
 const trabajadores = []; // Se cargan desde Supabase
 const tiposTrabajo = []; // Se cargan desde Supabase
-const fincas = ['La Pacheca','Los Luises','La Carrasca','Los Llanos','Lo Alegre'];
-const fincaData = {
-  'La Pacheca': { 'LIMÓN':['VERNAS'], 'PIMIENTO':['INVERNADERO 1','INVERNADERO 2','INVERNADERO 3','INVERNADERO 4','INVERNADERO 5','INVERNADEROS TODOS'], 'MANDARINOS':['ORONULES (LP)','NULESSIN (LP)'] },
-  'La Carrasca': { 'LIMÓN':['FINOS'], 'PIMIENTO':['INVERNADERO 1','INVERNADERO 2','INVERNADERO 3','INVERNADERO 4','INVERNADERO 5','INVERNADERO 6','INVERNADEROS TODOS'], 'MANDARINOS':['GOLD NUGGET (SJ)'] },
-  'Los Luises': { 'GRANADOS':['GRANADOS'], 'NARANJA':['VALENCIA LATE (17)'], 'MANDARINOS':['SOON Y RUBI (18)','CLEMENULES (19)','GOLD NUGGET (19)'] },
-  'Los Llanos': { 'LIMÓN':['VIEJOS (15)','CHAPARROS (7)','LIMÓN ANTOLÍN (21)','LIMÓN 2020 (12)','NUEVOS CARRETERA (12N)','NUEVOS CONEJOS (8)','NUEVOS MOLINERO (4)'], 'MANDARINOS':['TANGO (16)','LORETINA CASA (9)','LORETINA (10)','LORETINA PINO (11)','ORONULES (22)','GOLD NUGGET (23A)','NEUFINA (23)','MANDANOVA MANCO (14)','CULTIFORT (9A)','RUBI INVERNADEROS (20)','RUBI INJERTOS (3)','SOON INJERTOS (3A)','INJERTOS (3 + 3A)'], 'POMELO':['POMELO START RUBI CAÑADA (5)','POMELO START RUBI (13)'] },
-  'Lo Alegre': { 'LIMÓN':['FINOS'], 'BRÓCOLI':['BRÓCOLI'], 'MELÓN':['MELÓN'], 'CALABAZA':['CALABAZA'] }
-};
+const fincas = []; // Se cargan desde Supabase
+const fincaData = {}; // Se carga desde Supabase
 
 const state = { trabajadores: [] };  // Multiple workers
 let tareaCount = 0;
@@ -781,6 +775,31 @@ async function loadTareas() {
   } catch(e) { console.warn('Error cargando tareas:', e); }
 }
 
+async function loadFincasFromDB() {
+  try {
+    const [rf, rc, rp] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/fincas?activa=eq.true&order=nombre.asc&select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }),
+      fetch(`${SUPABASE_URL}/rest/v1/cultivos?activo=eq.true&order=nombre.asc&select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }),
+      fetch(`${SUPABASE_URL}/rest/v1/parcelas?activa=eq.true&order=nombre.asc&select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } })
+    ]);
+    const dbFincas = await rf.json();
+    const dbCultivos = await rc.json();
+    const dbParcelas = await rp.json();
+
+    fincas.length = 0;
+    dbFincas.forEach(f => {
+      fincas.push(f.nombre);
+      fincaData[f.nombre] = {};
+    });
+    dbCultivos.forEach(c => {
+      const finca = dbFincas.find(f => f.id === c.finca_id);
+      if (finca) {
+        fincaData[finca.nombre][c.nombre] = dbParcelas.filter(p => p.cultivo_id === c.id).map(p => p.nombre);
+      }
+    });
+  } catch(e) { console.warn('Error cargando fincas:', e); }
+}
+
 async function checkPin() {
   const pin = document.getElementById('pinInput').value.trim();
   if (!pin) return;
@@ -796,7 +815,7 @@ async function checkPin() {
       document.getElementById('pinScreen').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
       document.getElementById('encargadoSubtitle').textContent = `Registro diario de jornada · ${ENCARGADO_NOMBRE}`;
-      await loadTareas();
+      await Promise.all([loadTareas(), loadFincasFromDB()]);
       await loadCalendario();
       addTarea();
     } else {
