@@ -227,7 +227,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxcCLxttZuR3SMJQb64Yk9bKYqYS5alt77jgTbkr25BQDMTd-v2A9ZobbFewVWDuErF/exec';
 
 const trabajadores = []; // Se cargan desde Supabase
-const tiposTrabajo = ['Aclarar','Aspersión','Atar planta','Carriles','Coger','Compost','Control biológico','Desbrozadora','Estiércol','Fumigar','Hierba','Hilo','Labrar','Liar','Limpiar cultivo','Manta','Mantenimiento cultivo','Mantenimiento finca','Mantenimiento instalaciones','Moler leña','Pinzas','Plantar','Plástico','Podar','Preparar cultivo','Riego','Rieles'];
+const tiposTrabajo = []; // Se cargan desde Supabase
 const fincas = ['La Pacheca','Los Luises','La Carrasca','Los Llanos','Lo Alegre'];
 const fincaData = {
   'La Pacheca': { 'LIMÓN':['VERNAS'], 'PIMIENTO':['INVERNADERO 1','INVERNADERO 2','INVERNADERO 3','INVERNADERO 4','INVERNADERO 5','INVERNADEROS TODOS'], 'MANDARINOS':['ORONULES (LP)','NULESSIN (LP)'] },
@@ -792,8 +792,23 @@ document.getElementById('fecha').addEventListener('change', () => {
   loadTrabajadores();
 });
 
+async function loadTareasDavid() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/tareas_trabajo?activa=eq.true&order=nombre.asc&select=nombre`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      tiposTrabajo.length = 0;
+      data.forEach(t => tiposTrabajo.push(t.nombre));
+    }
+  } catch(e) { console.warn('Error cargando tareas:', e); }
+}
+
 async function init() {
   await loadTrabajadores();
+  await loadTareasDavid();
   await loadCalendario();
   addTarea();
 }
