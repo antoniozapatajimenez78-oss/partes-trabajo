@@ -662,8 +662,6 @@ async function loadCalendario() {
     const diaSemana = d.getDay();
     const fechaStr = `${anyo}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
     const esFuturo = d > hoy;
-    const partesEseDia = partesDelMes[fechaStr] ? partesDelMes[fechaStr].size : 0;
-
     const cell = document.createElement('div');
     cell.className = 'cal-day';
     cell.textContent = dia;
