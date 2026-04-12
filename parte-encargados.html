@@ -139,6 +139,8 @@
 </div>
 
 <div id="mainApp" style="display:none">
+<div id="loading-enc" style="text-align:center;padding:3rem 1rem;color:#6b7c6b;display:none"><div style="font-size:2rem;margin-bottom:0.75rem">🌿</div><div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.1em">Cargando datos...</div></div>
+<div id="app-content-enc">
 <div class="header">
   <div class="header-inner">
     <div class="header-tag">👷 Mano de Obra</div>
@@ -816,9 +818,13 @@ async function checkPin() {
       document.getElementById('mainApp').style.display = 'block';
       document.getElementById('encargadoSubtitle').textContent = `Registro diario de jornada · ${ENCARGADO_NOMBRE}`;
       document.getElementById('encargado-nombre-display').textContent = ENCARGADO_NOMBRE;
+      document.getElementById('loading-enc').style.display = 'block';
+      document.getElementById('app-content-enc').style.display = 'none';
       await Promise.all([loadTareas(), loadFincasFromDB()]);
       await loadCalendario();
       addTarea();
+      document.getElementById('loading-enc').style.display = 'none';
+      document.getElementById('app-content-enc').style.display = 'block';
     } else {
       document.getElementById('pinError').style.display = 'block';
       document.getElementById('pinInput').value = '';
@@ -833,6 +839,8 @@ document.addEventListener('DOMContentLoaded', () => {
 async function init() {}
 
 </script>
+</div>
+</div><!-- end app-content-enc -->
 </div>
 </body>
 </html>
