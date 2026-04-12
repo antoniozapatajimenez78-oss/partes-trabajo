@@ -765,12 +765,19 @@ async function loadTrabajadores() {
 
 async function loadTareas() {
   try {
+    const cached = localStorage.getItem('cache_tareas_encargados');
+    if (cached) {
+      const data = JSON.parse(cached);
+      tiposTrabajo.length = 0;
+      data.forEach(t => tiposTrabajo.push(t.nombre));
+    }
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/tareas_encargados?activa=eq.true&order=orden.asc,nombre.asc&select=nombre`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     if (res.ok) {
       const data = await res.json();
+      localStorage.setItem('cache_tareas_encargados', JSON.stringify(data));
       tiposTrabajo.length = 0;
       data.forEach(t => tiposTrabajo.push(t.nombre));
     }
@@ -779,6 +786,11 @@ async function loadTareas() {
 
 async function loadFincasFromDB() {
   try {
+    const cachedFincas = localStorage.getItem('cache_fincas_data');
+    if (cachedFincas) {
+      const { dbFincas, dbCultivos, dbParcelas } = JSON.parse(cachedFincas);
+      buildFincaData(dbFincas, dbCultivos, dbParcelas);
+    }
     const [rf, rc, rp] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/fincas?activa=eq.true&order=nombre.asc&select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }),
       fetch(`${SUPABASE_URL}/rest/v1/cultivos?activo=eq.true&order=nombre.asc&select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }),
@@ -787,19 +799,23 @@ async function loadFincasFromDB() {
     const dbFincas = await rf.json();
     const dbCultivos = await rc.json();
     const dbParcelas = await rp.json();
-
-    fincas.length = 0;
-    dbFincas.forEach(f => {
-      fincas.push(f.nombre);
-      fincaData[f.nombre] = {};
-    });
-    dbCultivos.forEach(c => {
-      const finca = dbFincas.find(f => f.id === c.finca_id);
-      if (finca) {
-        fincaData[finca.nombre][c.nombre] = dbParcelas.filter(p => p.cultivo_id === c.id).map(p => p.nombre);
-      }
-    });
+    localStorage.setItem('cache_fincas_data', JSON.stringify({ dbFincas, dbCultivos, dbParcelas }));
+    buildFincaData(dbFincas, dbCultivos, dbParcelas);
   } catch(e) { console.warn('Error cargando fincas:', e); }
+}
+
+function buildFincaData(dbFincas, dbCultivos, dbParcelas) {
+  fincas.length = 0;
+  dbFincas.forEach(f => {
+    fincas.push(f.nombre);
+    fincaData[f.nombre] = {};
+  });
+  dbCultivos.forEach(c => {
+    const finca = dbFincas.find(f => f.id === c.finca_id);
+    if (finca) {
+      fincaData[finca.nombre][c.nombre] = dbParcelas.filter(p => p.cultivo_id === c.id).map(p => p.nombre);
+    }
+  });
 }
 
 async function checkPin() {
