@@ -758,6 +758,14 @@ document.getElementById('fecha').value = today;
 
 async function loadTrabajadores() {
   const fecha = document.getElementById('fecha').value || today;
+
+  // Use cache for worker list
+  const cached = localStorage.getItem('cache_trabajadores');
+  if (cached) {
+    trabajadores.length = 0;
+    JSON.parse(cached).forEach(t => trabajadores.push(t));
+  }
+
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/trabajadores?fecha_alta=lte.${fecha}&or=(fecha_baja.is.null,fecha_baja.gte.${fecha})&order=nombre.asc&select=nombre`,
@@ -765,8 +773,10 @@ async function loadTrabajadores() {
     );
     if (res.ok) {
       const data = await res.json();
+      const nombres = data.map(t => t.nombre);
+      localStorage.setItem('cache_trabajadores', JSON.stringify(nombres));
       trabajadores.length = 0;
-      data.forEach(t => trabajadores.push(t.nombre));
+      nombres.forEach(n => trabajadores.push(n));
     }
   } catch(e) { console.warn('Error cargando trabajadores:', e); }
 
@@ -794,12 +804,21 @@ document.getElementById('fecha').addEventListener('change', () => {
 
 async function loadTareasDavid() {
   try {
+    // Use cache if available
+    const cached = localStorage.getItem('cache_tareas_trabajo');
+    if (cached) {
+      const data = JSON.parse(cached);
+      tiposTrabajo.length = 0;
+      data.forEach(t => tiposTrabajo.push(t.nombre));
+    }
+    // Always fetch fresh in background
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/tareas_trabajo?activa=eq.true&order=nombre.asc&select=nombre`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     if (res.ok) {
       const data = await res.json();
+      localStorage.setItem('cache_tareas_trabajo', JSON.stringify(data));
       tiposTrabajo.length = 0;
       data.forEach(t => tiposTrabajo.push(t.nombre));
     }
@@ -808,6 +827,13 @@ async function loadTareasDavid() {
 
 async function loadFincasFromDB() {
   try {
+    // Use cache if available — show immediately
+    const cachedFincas = localStorage.getItem('cache_fincas_data');
+    if (cachedFincas) {
+      const { dbFincas, dbCultivos, dbParcelas } = JSON.parse(cachedFincas);
+      buildFincaData(dbFincas, dbCultivos, dbParcelas);
+    }
+    // Fetch fresh in background
     const [rf, rc, rp] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/fincas?activa=eq.true&order=nombre.asc&select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }),
       fetch(`${SUPABASE_URL}/rest/v1/cultivos?activo=eq.true&order=nombre.asc&select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }),
@@ -816,27 +842,48 @@ async function loadFincasFromDB() {
     const dbFincas = await rf.json();
     const dbCultivos = await rc.json();
     const dbParcelas = await rp.json();
-
-    fincas.length = 0;
-    dbFincas.forEach(f => {
-      fincas.push(f.nombre);
-      fincaData[f.nombre] = {};
-    });
-    dbCultivos.forEach(c => {
-      const finca = dbFincas.find(f => f.id === c.finca_id);
-      if (finca) {
-        fincaData[finca.nombre][c.nombre] = dbParcelas.filter(p => p.cultivo_id === c.id).map(p => p.nombre);
-      }
-    });
+    localStorage.setItem('cache_fincas_data', JSON.stringify({ dbFincas, dbCultivos, dbParcelas }));
+    buildFincaData(dbFincas, dbCultivos, dbParcelas);
   } catch(e) { console.warn('Error cargando fincas:', e); }
 }
 
+function buildFincaData(dbFincas, dbCultivos, dbParcelas) {
+  fincas.length = 0;
+  dbFincas.forEach(f => {
+    fincas.push(f.nombre);
+    fincaData[f.nombre] = {};
+  });
+  dbCultivos.forEach(c => {
+    const finca = dbFincas.find(f => f.id === c.finca_id);
+    if (finca) {
+      fincaData[finca.nombre][c.nombre] = dbParcelas.filter(p => p.cultivo_id === c.id).map(p => p.nombre);
+    }
+  });
+}
+
 async function init() {
-  await Promise.all([loadTrabajadores(), loadTareasDavid(), loadFincasFromDB()]);
-  await loadCalendario();
-  addTarea();
-  document.getElementById('loading-screen').style.display = 'none';
-  document.getElementById('app-content').style.display = 'block';
+  // If we have cache, show content immediately while fetching fresh data
+  const hasCacheFincas = localStorage.getItem('cache_fincas_data');
+  const hasCacheTareas = localStorage.getItem('cache_tareas_trabajo');
+  const hasCacheTrabajadores = localStorage.getItem('cache_trabajadores');
+
+  if (hasCacheFincas && hasCacheTareas && hasCacheTrabajadores) {
+    // Load from cache instantly
+    loadTareasDavid();
+    loadFincasFromDB();
+    loadTrabajadores();
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+    await loadCalendario();
+    addTarea();
+  } else {
+    // First load — wait for all data
+    await Promise.all([loadTrabajadores(), loadTareasDavid(), loadFincasFromDB()]);
+    await loadCalendario();
+    addTarea();
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+  }
 }
 
 init();
