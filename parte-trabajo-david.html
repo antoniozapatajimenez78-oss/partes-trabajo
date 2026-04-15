@@ -264,6 +264,7 @@ async function loadTrabajadores() {
   let ausenciasPorTrabajador = {};
   let detallePorTrabajador = {};
   let trabajadoresConParte = new Set();
+  console.log('Consultando partes para fecha:', fecha);
   try {
     const res2 = await fetch(
       `${SUPABASE_URL}/rest/v1/partes_trabajo?fecha=eq.${fecha}&select=trabajador,horas,tipo_trabajo,finca,cultivo,parcelas`,
@@ -271,6 +272,7 @@ async function loadTrabajadores() {
     );
     if (res2.ok) {
       const data2 = await res2.json();
+      console.log('Partes del día:', JSON.stringify(data2));
       data2.forEach(r => {
         trabajadoresConParte.add(r.trabajador);
         if (!detallePorTrabajador[r.trabajador]) detallePorTrabajador[r.trabajador] = [];
