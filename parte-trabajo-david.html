@@ -301,30 +301,27 @@ function buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador, ausencias
     let horasLabel = '';
     if (ausencia) {
       horasLabel = `<span style="display:block;font-size:0.72rem;font-weight:600;margin-top:0.1rem;color:#e67e22">${ausencia === 'Ausente' ? 'Ausente' : 'No llamado'}</span>`;
+    } else if (tieneParte && horas > 0) {
+      horasLabel = `<span style="display:block;font-size:0.72rem;font-weight:600;margin-top:0.1rem;color:#2d6a2d">${horas}h ℹ️</span>`;
     } else if (tieneParte) {
-      horasLabel = `<span style="display:block;font-size:0.72rem;font-weight:600;margin-top:0.1rem;color:#2d6a2d">${horas}h</span>`;
+      horasLabel = `<span style="display:block;font-size:0.72rem;font-weight:600;margin-top:0.1rem;color:#e67e22">0h</span>`;
     }
 
     lbl.innerHTML = `<input type="checkbox"><span class="dot"></span><span>${nombre}${horasLabel}</span>`;
 
-    // Detail popup on label click (not checkbox)
+    // Click on hours label opens detail popup
     if (tieneParte && detallePorTrabajador && detallePorTrabajador[nombre]) {
       const detalle = detallePorTrabajador[nombre];
-      lbl.title = detalle.length > 0
-        ? detalle.map(r => `${r.tipo_trabajo} · ${r.horas}h · ${r.finca}${r.parcelas ? ' · ' + r.parcelas : ''}`).join('\n')
-        : (ausencia || '');
-
-      // Info button
       if (detalle.length > 0 || ausencia) {
-        const info = document.createElement('span');
-        info.textContent = 'ℹ️';
-        info.style.cssText = 'margin-left:0.3rem;cursor:pointer;font-size:0.85rem;';
-        info.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          showWorkerDetail(nombre, detalle, ausencia, horas);
-        });
-        lbl.appendChild(info);
+        const horasSpan = lbl.querySelector('span > span');
+        if (horasSpan) {
+          horasSpan.style.cursor = 'pointer';
+          horasSpan.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showWorkerDetail(nombre, detalle, ausencia, horas);
+          });
+        }
       }
     }
 
