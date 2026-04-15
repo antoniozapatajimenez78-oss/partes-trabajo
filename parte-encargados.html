@@ -199,6 +199,13 @@
       <button type="submit" class="btn-submit">Revisar y Enviar</button>
       <button type="button" class="btn-clear" onclick="clearForm()">Limpiar formulario</button>
     </div>
+
+    <!-- AUSENCIA -->
+    <div class="card" style="border:2px solid #ffd6d6;background:#fff8f8;margin-top:0.5rem">
+      <div class="card-title" style="color:#c0392b">⚠️ Marcar ausencia</div>
+      <p style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1rem">Si no has podido trabajar hoy, márcalo aquí para que quede registrado en el control.</p>
+      <button type="button" class="btn-submit" style="background:#c0392b" onclick="marcarAusencia()">Marcar como ausente</button>
+    </div>
   </form>
 </div>
 
@@ -238,7 +245,7 @@
 <script>
 const SUPABASE_URL = 'https://jecqfntpvzwipjcleqbl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplY3FmbnRwdnp3aXBqY2xlcWJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzE2NjIsImV4cCI6MjA5MDQ0NzY2Mn0.J26k1VElLscwOxhGTBXpyw-OnXZ-BZOiBW5vCG3CreI';
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwKR1ZTYAfJgSTxjecEW78pC3RpszeYPd4CKKKC2yjDG-PKdVC1986rh2Ol_Wq8nZXY/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz1Tk157WYuPll5msxaBrxeFDHwUKizbuVQCWhcbG2KH7mEyFSvy9473rAu73Y8cp8LnQ/exec';
 let ENCARGADO_NOMBRE = '';
 
 const trabajadores = []; // Se cargan desde Supabase
@@ -479,11 +486,18 @@ function validateForm() {
     if (!row.dataset.finca) { document.getElementById(`g-finca-${id}`)?.classList.add('field-error'); valid = false; }
     else { document.getElementById(`g-finca-${id}`)?.classList.remove('field-error'); }
 
-    if (JSON.parse(row.dataset.cultivos || '[]').length === 0) { document.getElementById(`g-cultivo-${id}`)?.classList.add('field-error'); valid = false; }
-    else { document.getElementById(`g-cultivo-${id}`)?.classList.remove('field-error'); }
+    const tipoVal = tipoChecked ? tipoChecked.dataset.val : '';
+    const esMantenimientoGeneral = tipoVal === 'Manten. General';
 
-    if (JSON.parse(row.dataset.parcelas || '[]').length === 0) { document.getElementById(`g-parcela-${id}`)?.classList.add('field-error'); valid = false; }
-    else { document.getElementById(`g-parcela-${id}`)?.classList.remove('field-error'); }
+    if (!esMantenimientoGeneral) {
+      if (JSON.parse(row.dataset.cultivos || '[]').length === 0) { document.getElementById(`g-cultivo-${id}`)?.classList.add('field-error'); valid = false; }
+      else { document.getElementById(`g-cultivo-${id}`)?.classList.remove('field-error'); }
+      if (JSON.parse(row.dataset.parcelas || '[]').length === 0) { document.getElementById(`g-parcela-${id}`)?.classList.add('field-error'); valid = false; }
+      else { document.getElementById(`g-parcela-${id}`)?.classList.remove('field-error'); }
+    } else {
+      document.getElementById(`g-cultivo-${id}`)?.classList.remove('field-error');
+      document.getElementById(`g-parcela-${id}`)?.classList.remove('field-error');
+    }
 
     const horasInput = document.getElementById(`horas-${id}`);
     const gHoras = document.getElementById(`g-horas-${id}`);
@@ -816,6 +830,26 @@ function buildFincaData(dbFincas, dbCultivos, dbParcelas) {
       fincaData[finca.nombre][c.nombre] = dbParcelas.filter(p => p.cultivo_id === c.id).map(p => p.nombre);
     }
   });
+}
+
+async function marcarAusencia() {
+  const fecha = document.getElementById('fecha').value;
+  if (!fecha) { alert('Selecciona una fecha.'); return; }
+  if (!confirm(`¿Marcar como ausente el ${fecha}?`)) return;
+
+  try {
+    const formData = new FormData();
+    formData.append('payload', JSON.stringify({
+      ausencia: true,
+      trabajador: ENCARGADO_NOMBRE,
+      fecha
+    }));
+    await fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: formData });
+    document.getElementById('successOverlay').classList.add('show');
+    document.getElementById('success-msg').textContent = `✅ Ausencia registrada para ${ENCARGADO_NOMBRE}`;
+  } catch(e) {
+    alert('Error al registrar la ausencia.');
+  }
 }
 
 async function checkPin() {
