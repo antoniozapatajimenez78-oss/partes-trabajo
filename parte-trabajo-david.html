@@ -141,6 +141,9 @@
   <div id="app-content" style="display:none">
   <p class="required-note"><span style="color:#c0392b">*</span> Campos obligatorios</p>
 
+  <!-- INCIDENCIAS BANNER -->
+  <div id="incidencias-banner" style="display:none"></div>
+
   <!-- CALENDARIO -->
   <div class="card" id="calendario-card" style="display:none">
     <div class="card-title"><span class="icon">📅</span> <span id="cal-titulo">Control mensual</span></div>
@@ -230,7 +233,7 @@
 <script>
 const SUPABASE_URL = 'https://jecqfntpvzwipjcleqbl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplY3FmbnRwdnp3aXBqY2xlcWJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzE2NjIsImV4cCI6MjA5MDQ0NzY2Mn0.J26k1VElLscwOxhGTBXpyw-OnXZ-BZOiBW5vCG3CreI';
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzGLMKhFeRtskq6TLldsFRZ6SelJpRlB7dU_9okJFUSi1qmfDSiBSCcMgWTq74t23PN/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyJP-qHzkACtZKx0LQiOQgtY42rQWuqMQBlispiVAJbJNnA0__P92CNVO7tqZdHEVJD/exec';
 
 const trabajadores = []; // Se cargan desde Supabase
 const tiposTrabajo = []; // Se cargan desde Supabase
@@ -354,6 +357,24 @@ function addTarea() {
       const val = lbl.dataset.val;
       otroInput.style.display = val === '__otro__' ? 'block' : 'none';
       if (val !== '__otro__') otroInput.value = '';
+
+      // Hide finca/cultivo/parcela/horas for Ausente and No llamado
+      const esAusencia = val === 'Ausente' || val === 'No llamado';
+      ['g-finca', 'g-cultivo', 'g-parcela', 'g-horas'].forEach(g => {
+        const el = document.getElementById(`${g}-${id}`);
+        if (el) el.style.display = esAusencia ? 'none' : '';
+      });
+      if (esAusencia) {
+        div.dataset.finca = 'N/A';
+        div.dataset.cultivos = '["N/A"]';
+        div.dataset.parcelas = '["N/A"]';
+        const horasInput = document.getElementById(`horas-${id}`);
+        if (horasInput) horasInput.value = '0';
+      } else {
+        div.dataset.finca = '';
+        div.dataset.cultivos = '[]';
+        div.dataset.parcelas = '[]';
+      }
     });
   });
 
@@ -470,19 +491,28 @@ function validateForm() {
       } else { gTipo.classList.remove('field-error'); }
     }
 
-    if (!row.dataset.finca) { document.getElementById(`g-finca-${id}`)?.classList.add('field-error'); valid = false; }
-    else { document.getElementById(`g-finca-${id}`)?.classList.remove('field-error'); }
+    const tipoVal = tipoChecked ? tipoChecked.dataset.val : '';
+    const esAusencia = tipoVal === 'Ausente' || tipoVal === 'No llamado';
 
-    if (JSON.parse(row.dataset.cultivos || '[]').length === 0) { document.getElementById(`g-cultivo-${id}`)?.classList.add('field-error'); valid = false; }
-    else { document.getElementById(`g-cultivo-${id}`)?.classList.remove('field-error'); }
+    if (!esAusencia) {
+      if (!row.dataset.finca) { document.getElementById(`g-finca-${id}`)?.classList.add('field-error'); valid = false; }
+      else { document.getElementById(`g-finca-${id}`)?.classList.remove('field-error'); }
 
-    if (JSON.parse(row.dataset.parcelas || '[]').length === 0) { document.getElementById(`g-parcela-${id}`)?.classList.add('field-error'); valid = false; }
-    else { document.getElementById(`g-parcela-${id}`)?.classList.remove('field-error'); }
+      if (JSON.parse(row.dataset.cultivos || '[]').length === 0) { document.getElementById(`g-cultivo-${id}`)?.classList.add('field-error'); valid = false; }
+      else { document.getElementById(`g-cultivo-${id}`)?.classList.remove('field-error'); }
 
-    const horasInput = document.getElementById(`horas-${id}`);
-    const gHoras = document.getElementById(`g-horas-${id}`);
-    if (!horasInput?.value || parseFloat(horasInput.value) <= 0) { gHoras.classList.add('field-error'); valid = false; }
-    else { gHoras.classList.remove('field-error'); }
+      if (JSON.parse(row.dataset.parcelas || '[]').length === 0) { document.getElementById(`g-parcela-${id}`)?.classList.add('field-error'); valid = false; }
+      else { document.getElementById(`g-parcela-${id}`)?.classList.remove('field-error'); }
+
+      const horasInput = document.getElementById(`horas-${id}`);
+      const gHoras = document.getElementById(`g-horas-${id}`);
+      if (!horasInput?.value || parseFloat(horasInput.value) <= 0) { gHoras.classList.add('field-error'); valid = false; }
+      else { gHoras.classList.remove('field-error'); }
+    } else {
+      ['g-finca', 'g-cultivo', 'g-parcela', 'g-horas'].forEach(g => {
+        document.getElementById(`${g}-${id}`)?.classList.remove('field-error');
+      });
+    }
   });
 
   return valid;
@@ -800,6 +830,7 @@ async function loadTrabajadores() {
 document.getElementById('fecha').addEventListener('change', () => {
   state.trabajadores = [];
   loadTrabajadores();
+  checkIncidencias();
 });
 
 async function loadTareasDavid() {
@@ -861,14 +892,34 @@ function buildFincaData(dbFincas, dbCultivos, dbParcelas) {
   });
 }
 
+async function checkIncidencias() {
+  try {
+    const fecha = document.getElementById('fecha').value || today;
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/incidencias?fecha=eq.${fecha}&select=*&order=created_at.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    const banner = document.getElementById('incidencias-banner');
+    if (data.length > 0) {
+      banner.innerHTML = `<div style="background:#fff3cd;border:2px solid #f0ad4e;border-radius:10px;padding:0.8rem 1rem;margin-bottom:1rem">
+        <div style="font-weight:700;color:#8a6d3b;margin-bottom:0.4rem">⚠️ Incidencias del día:</div>
+        ${data.map(i => `<div style="font-size:0.88rem;color:#8a6d3b">• <b>${i.trabajador}</b> — llegó a las ${i.hora_real}${i.observaciones ? ' · ' + i.observaciones : ''}</div>`).join('')}
+      </div>`;
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch(e) { console.warn('Error cargando incidencias:', e); }
+}
+
 async function init() {
-  // If we have cache, show content immediately while fetching fresh data
   const hasCacheFincas = localStorage.getItem('cache_fincas_data');
   const hasCacheTareas = localStorage.getItem('cache_tareas_trabajo');
   const hasCacheTrabajadores = localStorage.getItem('cache_trabajadores');
 
   if (hasCacheFincas && hasCacheTareas && hasCacheTrabajadores) {
-    // Load from cache instantly
     loadTareasDavid();
     loadFincasFromDB();
     loadTrabajadores();
@@ -877,13 +928,13 @@ async function init() {
     await loadCalendario();
     addTarea();
   } else {
-    // First load — wait for all data
     await Promise.all([loadTrabajadores(), loadTareasDavid(), loadFincasFromDB()]);
     await loadCalendario();
     addTarea();
     document.getElementById('loading-screen').style.display = 'none';
     document.getElementById('app-content').style.display = 'block';
   }
+  checkIncidencias();
 }
 
 init();
