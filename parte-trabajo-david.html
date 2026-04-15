@@ -301,7 +301,11 @@ function addTarea() {
     <div class="tarea-section">Tipo de trabajo *</div>
     <div class="field-group" id="g-tipo-${n}">
       <div class="tipo-grid" id="tipo-grid-${n}">
-        ${tiposTrabajo.map(t => `<label class="opt-label tipo-opt" data-id="${n}" data-val="${t}"><input type="radio" name="tipo-${n}" value="${t}">${t}</label>`).join('')}
+        ${tiposTrabajo.map(t => {
+          const esAusencia = t === 'Ausente' || t === 'No llamado';
+          const style = esAusencia ? 'border-color:#e74c3c;color:#c0392b;' : '';
+          return `<label class="opt-label tipo-opt" data-id="${n}" data-val="${t}" style="${style}"><input type="radio" name="tipo-${n}" value="${t}">${t}</label>`;
+        }).join('')}
         <label class="opt-label tipo-opt" data-id="${n}" data-val="__otro__"><input type="radio" name="tipo-${n}" value="__otro__">✏️ Otro</label>
       </div>
       <input type="text" id="tipo-otro-${n}" placeholder="Describe el trabajo..." style="display:none;margin-top:0.5rem">
