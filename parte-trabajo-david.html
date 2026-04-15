@@ -144,32 +144,25 @@
   <!-- INCIDENCIAS BANNER -->
   <div id="incidencias-banner" style="display:none"></div>
 
-  <!-- CALENDARIO -->
-  <div class="card" id="calendario-card" style="display:none">
-    <div class="card-title"><span class="icon">📅</span> <span id="cal-titulo">Control mensual</span></div>
-    <div class="calendar-grid" id="calendar-grid"></div>
-    <div class="cal-legend">
-      <span><div class="cal-dot" style="background:#d6f5d6"></div> Todos completos</span>
-      <span><div class="cal-dot" style="background:#ffd6a0"></div> Alguno pendiente</span>
-      <span><div class="cal-dot" style="background:#ffd6d6"></div> Sin partes</span>
-      <span><div class="cal-dot" style="background:#f0f0f0"></div> Domingo</span>
-    </div>
-  </div>
-
   <form id="mainForm" novalidate>
 
-    <!-- TRABAJADOR Y FECHA -->
+    <!-- FECHA -->
     <div class="card">
-      <div class="card-title"><span class="icon">👤</span> Trabajador y Fecha</div>
-      <div class="field-group" id="g-trabajador">
-        <label>Trabajador <span class="req">*</span> <span class="info-hint">(puedes elegir varios)</span></label>
-        <div class="options-grid compact" id="trabajador-grid"></div>
-        <div class="error-msg">Selecciona al menos un trabajador.</div>
-      </div>
+      <div class="card-title"><span class="icon">📅</span> Fecha</div>
       <div class="field-group" id="g-fecha">
         <label>Fecha <span class="req">*</span></label>
         <input type="date" id="fecha" name="fecha">
         <div class="error-msg">Selecciona una fecha.</div>
+      </div>
+    </div>
+
+    <!-- TRABAJADORES -->
+    <div class="card">
+      <div class="card-title"><span class="icon">👤</span> Trabajadores</div>
+      <div class="field-group" id="g-trabajador">
+        <label>Selecciona uno o varios <span class="req">*</span></label>
+        <div class="options-grid compact" id="trabajador-grid"></div>
+        <div class="error-msg">Selecciona al menos un trabajador.</div>
       </div>
     </div>
 
@@ -209,17 +202,6 @@
 </div>
 </div><!-- end app-content -->
 
-<!-- Day detail overlay -->
-<div class="overlay" id="dayDetailOverlay">
-  <div class="overlay-box">
-    <div class="overlay-title" id="day-detail-title">📋 Parte del día</div>
-    <div id="day-detail-content" style="font-size:0.88rem;color:var(--text-dark);line-height:1.8"></div>
-    <div class="overlay-actions">
-      <button class="btn-confirm" onclick="document.getElementById('dayDetailOverlay').classList.remove('show')">Cerrar</button>
-    </div>
-  </div>
-</div>
-
 <!-- Success overlay -->
 <div class="overlay" id="successOverlay">
   <div class="overlay-box success-box">
@@ -243,14 +225,60 @@ const fincaData = {}; // Se carga desde Supabase
 const state = { trabajadores: [] };  // Multiple workers
 let tareaCount = 0;
 
-function buildTrabajadorGrid(trabajadoresConParte) {
+async function loadTrabajadores() {
+  const fecha = document.getElementById('fecha').value || today;
+
+  const cached = localStorage.getItem('cache_trabajadores');
+  if (cached) {
+    trabajadores.length = 0;
+    JSON.parse(cached).forEach(t => trabajadores.push(t));
+  }
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/trabajadores?fecha_alta=lte.${fecha}&or=(fecha_baja.is.null,fecha_baja.gte.${fecha})&order=nombre.asc&select=nombre`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const nombres = data.map(t => t.nombre);
+      localStorage.setItem('cache_trabajadores', JSON.stringify(nombres));
+      trabajadores.length = 0;
+      nombres.forEach(n => trabajadores.push(n));
+    }
+  } catch(e) { console.warn('Error cargando trabajadores:', e); }
+
+  // Check who already has a parte today and fetch their hours
+  let horasPorTrabajador = {};
+  let trabajadoresConParte = new Set();
+  try {
+    const res2 = await fetch(
+      `${SUPABASE_URL}/rest/v1/partes_trabajo?fecha=eq.${fecha}&select=trabajador,horas,tipo_trabajo`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (res2.ok) {
+      const data2 = await res2.json();
+      data2.forEach(r => {
+        trabajadoresConParte.add(r.trabajador);
+        if (!horasPorTrabajador[r.trabajador]) horasPorTrabajador[r.trabajador] = 0;
+        horasPorTrabajador[r.trabajador] += parseFloat(r.horas) || 0;
+      });
+    }
+  } catch(e) {}
+
+  buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador);
+}
+
+function buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador) {
   const grid = document.getElementById('trabajador-grid');
   grid.innerHTML = '';
   trabajadores.forEach(nombre => {
     const tieneParte = trabajadoresConParte.has(nombre);
+    const horas = horasPorTrabajador ? (horasPorTrabajador[nombre] || 0) : 0;
     const lbl = document.createElement('label');
     lbl.className = 'opt-label' + (tieneParte ? ' worker-done' : '');
-    lbl.innerHTML = `<input type="checkbox"><span class="dot"></span>${nombre}${tieneParte ? ' ✅' : ''}`;
+    const horasLabel = tieneParte ? `<span style="display:block;font-size:0.72rem;font-weight:600;margin-top:0.1rem;color:${horas > 0 ? '#2d6a2d' : '#e67e22'}">${horas > 0 ? horas + 'h' : 'A/NL'}</span>` : '';
+    lbl.innerHTML = `<input type="checkbox"><span class="dot"></span><span>${nombre}${horasLabel}</span>`;
     const cb = lbl.querySelector('input');
     cb.addEventListener('change', () => {
       lbl.classList.toggle('checked', cb.checked);
@@ -656,135 +684,7 @@ function newForm() {
   document.getElementById('reviewOverlay').classList.remove('show');
   window._parteData = null;
   loadTrabajadores();
-  loadCalendario();
   clearForm();
-}
-
-// ── CALENDAR ──
-async function loadCalendario() {
-  const now = new Date();
-  const mes = now.getMonth();
-  const anyo = now.getFullYear();
-  const nombreMes = now.toLocaleString('es-ES', { month: 'long' });
-  document.getElementById('cal-titulo').textContent = `Control ${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)} ${anyo}`;
-
-  const primerDia = `${anyo}-${String(mes+1).padStart(2,'0')}-01`;
-  const ultimoDia = new Date(anyo, mes+1, 0);
-  const ultimoDiaStr = `${anyo}-${String(mes+1).padStart(2,'0')}-${String(ultimoDia.getDate()).padStart(2,'0')}`;
-
-  let partesDelMes = {};
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/partes_trabajo?fecha=gte.${primerDia}&fecha=lte.${ultimoDiaStr}&select=fecha,trabajador`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      data.forEach(r => {
-        if (!partesDelMes[r.fecha]) partesDelMes[r.fecha] = new Set();
-        partesDelMes[r.fecha].add(r.trabajador);
-      });
-    }
-  } catch(e) {}
-
-  const numTrabajadores = trabajadores.length || 1;
-  const grid = document.getElementById('calendar-grid');
-  grid.innerHTML = '';
-
-  ['L','M','X','J','V','S','D'].forEach(d => {
-    const h = document.createElement('div'); h.className = 'cal-header'; h.textContent = d; grid.appendChild(h);
-  });
-
-  const primerDiaSemana = new Date(anyo, mes, 1).getDay();
-  const offset = primerDiaSemana === 0 ? 6 : primerDiaSemana - 1;
-  for (let i = 0; i < offset; i++) { const e = document.createElement('div'); e.className = 'cal-day empty'; grid.appendChild(e); }
-
-  const hoy = new Date();
-  const hoyStr = `${anyo}-${String(mes+1).padStart(2,'0')}-${String(hoy.getDate()).padStart(2,'0')}`;
-
-  for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
-    const d = new Date(anyo, mes, dia);
-    const diaSemana = d.getDay();
-    const fechaStr = `${anyo}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
-    const esFuturo = d > hoy;
-    const partesEseDia = partesDelMes[fechaStr] ? partesDelMes[fechaStr].size : 0;
-
-    const cell = document.createElement('div');
-    cell.className = 'cal-day';
-    cell.textContent = dia;
-
-    if (diaSemana === 0) {
-      if (partesEseDia > 0) {
-        cell.classList.add('done');
-        cell.title = `${partesEseDia} parte(s) — pulsa para ver`;
-        cell.addEventListener('click', () => showDayDetail(fechaStr));
-      } else {
-        cell.classList.add('sunday');
-      }
-    } else if (esFuturo) {
-      cell.classList.add('future');
-    } else if (partesEseDia === 0) {
-      cell.classList.add('none');
-    } else if (partesEseDia >= numTrabajadores) {
-      cell.classList.add('done');
-      cell.title = 'Todos completos — pulsa para ver';
-      cell.addEventListener('click', () => showDayDetail(fechaStr));
-    } else {
-      cell.classList.add('partial');
-      cell.title = `${partesEseDia}/${numTrabajadores} trabajadores — pulsa para ver`;
-      cell.addEventListener('click', () => showDayDetail(fechaStr));
-    }
-
-    if (fechaStr === hoyStr) cell.classList.add('today');
-    grid.appendChild(cell);
-  }
-  document.getElementById('calendario-card').style.display = 'block';
-}
-
-async function showDayDetail(fecha) {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/partes_trabajo?fecha=eq.${fecha}&order=trabajador.asc&select=*`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-    const rows = await res.json();
-    if (!rows.length) return;
-
-    const fechaDisplay = new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long' });
-    document.getElementById('day-detail-title').textContent = `📋 ${fechaDisplay}`;
-
-    // Group by worker
-    const porTrabajador = {};
-    rows.forEach(r => {
-      if (!porTrabajador[r.trabajador]) porTrabajador[r.trabajador] = [];
-      porTrabajador[r.trabajador].push(r);
-    });
-
-    let html = `<div style="display:grid;gap:0.6rem">`;
-    Object.entries(porTrabajador).forEach(([nombre, tareas]) => {
-      html += `<div style="background:var(--cream);border-radius:8px;padding:0.6rem 0.8rem">
-        <div style="font-weight:700;margin-bottom:0.3rem">👤 ${nombre}</div>`;
-      tareas.forEach((r, i) => {
-        html += `<div style="padding:0.2rem 0;border-bottom:1px dashed var(--border);font-size:0.85rem">
-          <strong>${r.tipo_trabajo}</strong> · ${r.horas}h · 🌾 ${r.finca} · ${r.parcelas}
-          ${r.observaciones_tarea ? `<span style="opacity:0.6"> — ${r.observaciones_tarea}</span>` : ''}
-        </div>`;
-      });
-      const totalH = tareas.reduce((s,r) => s + r.horas, 0);
-      html += `<div style="font-size:0.78rem;color:var(--amber);font-weight:600;margin-top:0.3rem">Total: ${totalH}h</div></div>`;
-    });
-
-    // Show missing workers
-    const presentes = new Set(Object.keys(porTrabajador));
-    const ausentes = trabajadores.filter(t => !presentes.has(t));
-    if (ausentes.length > 0) {
-      html += `<div style="background:#fff3cd;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.82rem">
-        ⚠️ <strong>Sin parte:</strong> ${ausentes.join(', ')}
-      </div>`;
-    }
-    html += `</div>`;
-
-    document.getElementById('day-detail-content').innerHTML = html;
-    document.getElementById('dayDetailOverlay').classList.add('show');
-  } catch(e) { console.error(e); }
 }
 
 // INIT
@@ -930,11 +830,9 @@ async function init() {
     loadTrabajadores();
     document.getElementById('loading-screen').style.display = 'none';
     document.getElementById('app-content').style.display = 'block';
-    await loadCalendario();
     addTarea();
   } else {
     await Promise.all([loadTrabajadores(), loadTareasDavid(), loadFincasFromDB()]);
-    await loadCalendario();
     addTarea();
     document.getElementById('loading-screen').style.display = 'none';
     document.getElementById('app-content').style.display = 'block';
