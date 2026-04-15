@@ -203,7 +203,11 @@
     <!-- AUSENCIA -->
     <div class="card" style="border:2px solid #ffd6d6;background:#fff8f8;margin-top:0.5rem">
       <div class="card-title" style="color:#c0392b">⚠️ Marcar ausencia</div>
-      <p style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1rem">Si no has podido trabajar hoy, márcalo aquí para que quede registrado en el control.</p>
+      <p style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1rem">Si no has podido trabajar, márcalo aquí para que quede registrado en el control.</p>
+      <div class="field-group" style="margin-bottom:1rem">
+        <label>Fecha de ausencia</label>
+        <input type="date" id="fechaAusencia">
+      </div>
       <button type="button" class="btn-submit" style="background:#c0392b" onclick="marcarAusencia()">Marcar como ausente</button>
     </div>
   </form>
@@ -370,6 +374,20 @@ function addTarea() {
       const val = lbl.dataset.val;
       otroInput.style.display = val === '__otro__' ? 'block' : 'none';
       if (val !== '__otro__') otroInput.value = '';
+
+      // Hide cultivo/parcela for Manten. General
+      const esMantenimientoGeneral = val === 'Manten. General';
+      const gCultivo = document.getElementById(`g-cultivo-${id}`);
+      const gParcela = document.getElementById(`g-parcela-${id}`);
+      if (gCultivo) gCultivo.style.display = esMantenimientoGeneral ? 'none' : '';
+      if (gParcela) gParcela.style.display = esMantenimientoGeneral ? 'none' : '';
+      if (esMantenimientoGeneral) {
+        div.dataset.cultivos = '["General"]';
+        div.dataset.parcelas = '["General"]';
+      } else {
+        div.dataset.cultivos = '[]';
+        div.dataset.parcelas = '[]';
+      }
     });
   });
 
@@ -833,9 +851,9 @@ function buildFincaData(dbFincas, dbCultivos, dbParcelas) {
 }
 
 async function marcarAusencia() {
-  const fecha = document.getElementById('fecha').value;
+  const fecha = document.getElementById('fechaAusencia').value;
   if (!fecha) { alert('Selecciona una fecha.'); return; }
-  if (!confirm(`¿Marcar como ausente el ${fecha}?`)) return;
+  if (!confirm(`¿Marcar ausencia el ${fecha} para ${ENCARGADO_NOMBRE}?`)) return;
 
   try {
     const formData = new FormData();
@@ -846,7 +864,7 @@ async function marcarAusencia() {
     }));
     await fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: formData });
     document.getElementById('successOverlay').classList.add('show');
-    document.getElementById('success-msg').textContent = `✅ Ausencia registrada para ${ENCARGADO_NOMBRE}`;
+    document.getElementById('success-msg').textContent = `✅ Ausencia registrada para ${ENCARGADO_NOMBRE} el ${fecha}`;
   } catch(e) {
     alert('Error al registrar la ausencia.');
   }
@@ -868,6 +886,7 @@ async function checkPin() {
       document.getElementById('mainApp').style.display = 'block';
       document.getElementById('encargadoSubtitle').textContent = `Registro diario de jornada · ${ENCARGADO_NOMBRE}`;
       document.getElementById('encargado-nombre-display').textContent = ENCARGADO_NOMBRE;
+      document.getElementById('fechaAusencia').value = today;
       document.getElementById('loading-enc').style.display = 'block';
       document.getElementById('app-content-enc').style.display = 'none';
       await Promise.all([loadTareas(), loadFincasFromDB()]);
