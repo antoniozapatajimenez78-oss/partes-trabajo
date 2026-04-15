@@ -202,6 +202,17 @@
 </div>
 </div><!-- end app-content -->
 
+<!-- Worker detail overlay -->
+<div class="overlay" id="workerDetailOverlay">
+  <div class="overlay-box">
+    <div class="overlay-title" id="worker-detail-title">👤 Trabajador</div>
+    <div id="worker-detail-content" style="font-size:0.88rem;color:var(--text-dark);line-height:1.8;max-height:60vh;overflow-y:auto"></div>
+    <div class="overlay-actions">
+      <button class="btn-confirm" onclick="document.getElementById('workerDetailOverlay').classList.remove('show')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Success overlay -->
 <div class="overlay" id="successOverlay">
   <div class="overlay-box success-box">
@@ -250,35 +261,73 @@ async function loadTrabajadores() {
 
   // Check who already has a parte today and fetch their hours
   let horasPorTrabajador = {};
+  let ausenciasPorTrabajador = {};
+  let detallePorTrabajador = {};
   let trabajadoresConParte = new Set();
   try {
     const res2 = await fetch(
-      `${SUPABASE_URL}/rest/v1/partes_trabajo?fecha=eq.${fecha}&select=trabajador,horas,tipo_trabajo`,
+      `${SUPABASE_URL}/rest/v1/partes_trabajo?fecha=eq.${fecha}&select=trabajador,horas,tipo_trabajo,finca,cultivo,parcelas`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     if (res2.ok) {
       const data2 = await res2.json();
       data2.forEach(r => {
         trabajadoresConParte.add(r.trabajador);
-        if (!horasPorTrabajador[r.trabajador]) horasPorTrabajador[r.trabajador] = 0;
-        horasPorTrabajador[r.trabajador] += parseFloat(r.horas) || 0;
+        if (!detallePorTrabajador[r.trabajador]) detallePorTrabajador[r.trabajador] = [];
+        if (r.tipo_trabajo === 'Ausente' || r.tipo_trabajo === 'No llamado') {
+          ausenciasPorTrabajador[r.trabajador] = r.tipo_trabajo;
+        } else {
+          if (!horasPorTrabajador[r.trabajador]) horasPorTrabajador[r.trabajador] = 0;
+          horasPorTrabajador[r.trabajador] += parseFloat(r.horas) || 0;
+          detallePorTrabajador[r.trabajador].push(r);
+        }
       });
     }
   } catch(e) {}
 
-  buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador);
+  buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador, ausenciasPorTrabajador, detallePorTrabajador);
 }
 
-function buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador) {
+function buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador, ausenciasPorTrabajador, detallePorTrabajador) {
   const grid = document.getElementById('trabajador-grid');
   grid.innerHTML = '';
   trabajadores.forEach(nombre => {
     const tieneParte = trabajadoresConParte.has(nombre);
     const horas = horasPorTrabajador ? (horasPorTrabajador[nombre] || 0) : 0;
+    const ausencia = ausenciasPorTrabajador ? ausenciasPorTrabajador[nombre] : null;
     const lbl = document.createElement('label');
     lbl.className = 'opt-label' + (tieneParte ? ' worker-done' : '');
-    const horasLabel = tieneParte ? `<span style="display:block;font-size:0.72rem;font-weight:600;margin-top:0.1rem;color:${horas > 0 ? '#2d6a2d' : '#e67e22'}">${horas > 0 ? horas + 'h' : 'A/NL'}</span>` : '';
+
+    let horasLabel = '';
+    if (ausencia) {
+      horasLabel = `<span style="display:block;font-size:0.72rem;font-weight:600;margin-top:0.1rem;color:#e67e22">${ausencia === 'Ausente' ? 'Ausente' : 'No llamado'}</span>`;
+    } else if (tieneParte) {
+      horasLabel = `<span style="display:block;font-size:0.72rem;font-weight:600;margin-top:0.1rem;color:#2d6a2d">${horas}h</span>`;
+    }
+
     lbl.innerHTML = `<input type="checkbox"><span class="dot"></span><span>${nombre}${horasLabel}</span>`;
+
+    // Detail popup on label click (not checkbox)
+    if (tieneParte && detallePorTrabajador && detallePorTrabajador[nombre]) {
+      const detalle = detallePorTrabajador[nombre];
+      lbl.title = detalle.length > 0
+        ? detalle.map(r => `${r.tipo_trabajo} · ${r.horas}h · ${r.finca}${r.parcelas ? ' · ' + r.parcelas : ''}`).join('\n')
+        : (ausencia || '');
+
+      // Info button
+      if (detalle.length > 0 || ausencia) {
+        const info = document.createElement('span');
+        info.textContent = 'ℹ️';
+        info.style.cssText = 'margin-left:0.3rem;cursor:pointer;font-size:0.85rem;';
+        info.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showWorkerDetail(nombre, detalle, ausencia, horas);
+        });
+        lbl.appendChild(info);
+      }
+    }
+
     const cb = lbl.querySelector('input');
     cb.addEventListener('change', () => {
       lbl.classList.toggle('checked', cb.checked);
@@ -291,6 +340,24 @@ function buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador) {
     });
     grid.appendChild(lbl);
   });
+}
+
+function showWorkerDetail(nombre, detalle, ausencia, totalHoras) {
+  const overlay = document.getElementById('workerDetailOverlay');
+  document.getElementById('worker-detail-title').textContent = `👤 ${nombre}`;
+  let html = '';
+  if (ausencia) {
+    html = `<div style="background:#fff3cd;border-radius:8px;padding:0.8rem;text-align:center;font-weight:600;color:#e67e22">${ausencia}</div>`;
+  } else {
+    html = detalle.map(r => `
+      <div style="background:var(--cream);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:0.4rem">
+        <div style="font-weight:600">${r.tipo_trabajo} · <span style="color:#2d6a2d">${r.horas}h</span></div>
+        <div style="font-size:0.82rem;color:var(--text-mid)">${r.finca}${r.cultivo ? ' · ' + r.cultivo : ''}${r.parcelas ? ' · ' + r.parcelas : ''}</div>
+      </div>`).join('');
+    html += `<div style="text-align:right;font-weight:700;color:#2d6a2d;margin-top:0.5rem">Total: ${totalHoras}h</div>`;
+  }
+  document.getElementById('worker-detail-content').innerHTML = html;
+  overlay.classList.add('show');
 }
 
 function buildRadioGrid(containerId, items, stateKey) {
@@ -647,13 +714,20 @@ async function confirmAndSend() {
   const btn = document.getElementById('btn-confirm');
   btn.textContent = 'Enviando...';
   btn.disabled = true;
-  const [savedDB] = await Promise.all([saveToSupabase(parte), saveToSheets(parte)]);
+
+  // Save to Supabase first — this is the critical save
+  const savedDB = await saveToSupabase(parte);
+
+  // Show success immediately without waiting for Sheets
   btn.textContent = '✅ Confirmar y Enviar';
   btn.disabled = false;
   document.getElementById('reviewOverlay').classList.remove('show');
   document.getElementById('success-msg').textContent = savedDB ? '✅ Parte registrado correctamente.' : '⚠️ Hubo un problema al guardar. Contacta con la oficina.';
   document.getElementById('successOverlay').classList.add('show');
   window._parteData = null;
+
+  // Send to Sheets in background — don't wait
+  saveToSheets(parte);
 }
 
 document.getElementById('mainForm').addEventListener('submit', function(e) {
