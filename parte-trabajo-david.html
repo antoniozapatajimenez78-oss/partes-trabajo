@@ -233,7 +233,7 @@
 <script>
 const SUPABASE_URL = 'https://jecqfntpvzwipjcleqbl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplY3FmbnRwdnp3aXBqY2xlcWJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzE2NjIsImV4cCI6MjA5MDQ0NzY2Mn0.J26k1VElLscwOxhGTBXpyw-OnXZ-BZOiBW5vCG3CreI';
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyJP-qHzkACtZKx0LQiOQgtY42rQWuqMQBlispiVAJbJNnA0__P92CNVO7tqZdHEVJD/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyZ9fgP95j5LqS3LSosDmodeKs0j0Ao0qnkKB_XFKrR3jSnYn7DSZE8mTC0wTcT_DjV/exec';
 
 const trabajadores = []; // Se cargan desde Supabase
 const tiposTrabajo = []; // Se cargan desde Supabase
@@ -301,12 +301,13 @@ function addTarea() {
     <div class="tarea-section">Tipo de trabajo *</div>
     <div class="field-group" id="g-tipo-${n}">
       <div class="tipo-grid" id="tipo-grid-${n}">
-        ${tiposTrabajo.map(t => {
-          const esAusencia = t === 'Ausente' || t === 'No llamado';
-          const style = esAusencia ? 'border-color:#e74c3c;color:#c0392b;' : '';
-          return `<label class="opt-label tipo-opt" data-id="${n}" data-val="${t}" style="${style}"><input type="radio" name="tipo-${n}" value="${t}">${t}</label>`;
-        }).join('')}
+        ${tiposTrabajo.filter(t => t !== 'Ausente' && t !== 'No llamado').map(t =>
+          `<label class="opt-label tipo-opt" data-id="${n}" data-val="${t}"><input type="radio" name="tipo-${n}" value="${t}">${t}</label>`
+        ).join('')}
         <label class="opt-label tipo-opt" data-id="${n}" data-val="__otro__"><input type="radio" name="tipo-${n}" value="__otro__">✏️ Otro</label>
+        ${tiposTrabajo.filter(t => t === 'Ausente' || t === 'No llamado').map(t =>
+          `<label class="opt-label tipo-opt" data-id="${n}" data-val="${t}" style="border-color:#e74c3c;color:#c0392b;"><input type="radio" name="tipo-${n}" value="${t}">${t}</label>`
+        ).join('')}
       </div>
       <input type="text" id="tipo-otro-${n}" placeholder="Describe el trabajo..." style="display:none;margin-top:0.5rem">
       <div class="error-msg">Selecciona un tipo de trabajo.</div>
