@@ -770,46 +770,6 @@ function newForm() {
 const today = new Date().toISOString().split('T')[0];
 document.getElementById('fecha').value = today;
 
-async function loadTrabajadores() {
-  const fecha = document.getElementById('fecha').value || today;
-
-  // Use cache for worker list
-  const cached = localStorage.getItem('cache_trabajadores');
-  if (cached) {
-    trabajadores.length = 0;
-    JSON.parse(cached).forEach(t => trabajadores.push(t));
-  }
-
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/trabajadores?fecha_alta=lte.${fecha}&or=(fecha_baja.is.null,fecha_baja.gte.${fecha})&order=nombre.asc&select=nombre`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const nombres = data.map(t => t.nombre);
-      localStorage.setItem('cache_trabajadores', JSON.stringify(nombres));
-      trabajadores.length = 0;
-      nombres.forEach(n => trabajadores.push(n));
-    }
-  } catch(e) { console.warn('Error cargando trabajadores:', e); }
-
-  // Check who already has a parte today
-  let trabajadoresConParte = new Set();
-  try {
-    const res2 = await fetch(
-      `${SUPABASE_URL}/rest/v1/partes_trabajo?fecha=eq.${fecha}&select=trabajador`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    if (res2.ok) {
-      const data2 = await res2.json();
-      data2.forEach(r => trabajadoresConParte.add(r.trabajador));
-    }
-  } catch(e) {}
-
-  buildTrabajadorGrid(trabajadoresConParte);
-}
-
 // Update worker colors when date changes
 document.getElementById('fecha').addEventListener('change', () => {
   state.trabajadores = [];
@@ -906,7 +866,7 @@ async function init() {
   if (hasCacheFincas && hasCacheTareas && hasCacheTrabajadores) {
     loadTareasDavid();
     loadFincasFromDB();
-    loadTrabajadores();
+    await loadTrabajadores();
     document.getElementById('loading-screen').style.display = 'none';
     document.getElementById('app-content').style.display = 'block';
     addTarea();
