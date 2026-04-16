@@ -259,12 +259,11 @@ async function loadTrabajadores() {
     }
   } catch(e) { console.warn('Error cargando trabajadores:', e); }
 
-  // Check who already has a parte today and fetch their hours
+  // Fetch partes del día
   let horasPorTrabajador = {};
   let ausenciasPorTrabajador = {};
   let detallePorTrabajador = {};
   let trabajadoresConParte = new Set();
-  console.log('Consultando partes para fecha:', fecha);
   try {
     const res2 = await fetch(
       `${SUPABASE_URL}/rest/v1/partes_trabajo?fecha=eq.${fecha}&select=trabajador,horas,tipo_trabajo,finca,cultivo,parcelas`,
@@ -272,20 +271,20 @@ async function loadTrabajadores() {
     );
     if (res2.ok) {
       const data2 = await res2.json();
-      console.log('Partes del día:', JSON.stringify(data2));
       data2.forEach(r => {
-        trabajadoresConParte.add(r.trabajador);
-        if (!detallePorTrabajador[r.trabajador]) detallePorTrabajador[r.trabajador] = [];
+        const nom = r.trabajador;
+        trabajadoresConParte.add(nom);
+        if (!detallePorTrabajador[nom]) detallePorTrabajador[nom] = [];
         if (r.tipo_trabajo === 'Ausente' || r.tipo_trabajo === 'No llamado') {
-          ausenciasPorTrabajador[r.trabajador] = r.tipo_trabajo;
+          ausenciasPorTrabajador[nom] = r.tipo_trabajo;
         } else {
-          if (!horasPorTrabajador[r.trabajador]) horasPorTrabajador[r.trabajador] = 0;
-          horasPorTrabajador[r.trabajador] += parseFloat(r.horas) || 0;
-          detallePorTrabajador[r.trabajador].push(r);
+          if (!horasPorTrabajador[nom]) horasPorTrabajador[nom] = 0;
+          horasPorTrabajador[nom] += parseFloat(r.horas) || 0;
+          detallePorTrabajador[nom].push(r);
         }
       });
     }
-  } catch(e) {}
+  } catch(e) { console.warn('Error cargando partes:', e); }
 
   buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador, ausenciasPorTrabajador, detallePorTrabajador);
 }
@@ -293,39 +292,33 @@ async function loadTrabajadores() {
 function buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador, ausenciasPorTrabajador, detallePorTrabajador) {
   const grid = document.getElementById('trabajador-grid');
   grid.innerHTML = '';
+
   trabajadores.forEach(nombre => {
     const tieneParte = trabajadoresConParte.has(nombre);
-    const horas = horasPorTrabajador ? (horasPorTrabajador[nombre] || 0) : 0;
-    const ausencia = ausenciasPorTrabajador ? ausenciasPorTrabajador[nombre] : null;
+    const horas = (horasPorTrabajador && horasPorTrabajador[nombre]) || 0;
+    const ausencia = ausenciasPorTrabajador && ausenciasPorTrabajador[nombre];
+    const detalle = (detallePorTrabajador && detallePorTrabajador[nombre]) || [];
+
+    // Wrapper div
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;align-items:center;gap:0.3rem';
+
+    // Checkbox label
     const lbl = document.createElement('label');
     lbl.className = 'opt-label' + (tieneParte ? ' worker-done' : '');
+    lbl.style.cssText = 'flex:1;flex-direction:column;align-items:flex-start;padding:0.5rem 0.7rem';
 
-    let horasLabel = '';
+    let horasText = '';
+    let horasColor = '#2d6a2d';
     if (ausencia) {
-      horasLabel = `<span style="display:block;font-size:0.72rem;font-weight:600;margin-top:0.1rem;color:#e67e22">${ausencia === 'Ausente' ? 'Ausente' : 'No llamado'}</span>`;
-    } else if (tieneParte && horas > 0) {
-      horasLabel = `<span style="display:block;font-size:0.72rem;font-weight:600;margin-top:0.1rem;color:#2d6a2d">${horas}h ℹ️</span>`;
+      horasText = ausencia === 'Ausente' ? 'Ausente' : 'No llamado';
+      horasColor = '#e67e22';
     } else if (tieneParte) {
-      horasLabel = `<span style="display:block;font-size:0.72rem;font-weight:600;margin-top:0.1rem;color:#e67e22">0h</span>`;
+      horasText = horas + 'h';
+      horasColor = horas > 0 ? '#2d6a2d' : '#e67e22';
     }
 
-    lbl.innerHTML = `<input type="checkbox"><span class="dot"></span><span>${nombre}${horasLabel}</span>`;
-
-    // Click on hours label opens detail popup
-    if (tieneParte && detallePorTrabajador && detallePorTrabajador[nombre]) {
-      const detalle = detallePorTrabajador[nombre];
-      if (detalle.length > 0 || ausencia) {
-        const horasSpan = lbl.querySelector('span > span');
-        if (horasSpan) {
-          horasSpan.style.cursor = 'pointer';
-          horasSpan.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            showWorkerDetail(nombre, detalle, ausencia, horas);
-          });
-        }
-      }
-    }
+    lbl.innerHTML = `<span style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox"><span class="dot"></span>${nombre}</span>${horasText ? `<span style="font-size:0.72rem;font-weight:700;color:${horasColor};margin-top:0.15rem;padding-left:1.4rem">${horasText}</span>` : ''}`;
 
     const cb = lbl.querySelector('input');
     cb.addEventListener('change', () => {
@@ -337,7 +330,20 @@ function buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador, ausencias
       }
       document.getElementById('g-trabajador')?.classList.remove('field-error');
     });
-    grid.appendChild(lbl);
+    wrapper.appendChild(lbl);
+
+    // Info button (separate from label)
+    if (tieneParte && (detalle.length > 0 || ausencia)) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'ℹ️';
+      btn.title = 'Ver detalle';
+      btn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:1rem;padding:0.2rem;flex-shrink:0';
+      btn.addEventListener('click', () => showWorkerDetail(nombre, detalle, ausencia, horas));
+      wrapper.appendChild(btn);
+    }
+
+    grid.appendChild(wrapper);
   });
 }
 
@@ -351,7 +357,7 @@ function showWorkerDetail(nombre, detalle, ausencia, totalHoras) {
     html = detalle.map(r => `
       <div style="background:var(--cream);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:0.4rem">
         <div style="font-weight:600">${r.tipo_trabajo} · <span style="color:#2d6a2d">${r.horas}h</span></div>
-        <div style="font-size:0.82rem;color:var(--text-mid)">${r.finca}${r.cultivo ? ' · ' + r.cultivo : ''}${r.parcelas ? ' · ' + r.parcelas : ''}</div>
+        <div style="font-size:0.82rem;color:var(--text-mid)">${r.finca || ''}${r.cultivo ? ' · ' + r.cultivo : ''}${r.parcelas ? ' · ' + r.parcelas : ''}</div>
       </div>`).join('');
     html += `<div style="text-align:right;font-weight:700;color:#2d6a2d;margin-top:0.5rem">Total: ${totalHoras}h</div>`;
   }
