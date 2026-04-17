@@ -922,8 +922,11 @@ async function deleteParte(id) {
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
   });
   if (res.ok) {
+    partesPendientes = partesPendientes.filter(p => p.id !== id);
     await loadPartesPendientes();
     await loadTrabajadores();
+  } else {
+    alert('Error al borrar el parte.');
   }
 }
 
@@ -934,6 +937,12 @@ function editParte(id) {
   const alias = trabajadores.find(t => (typeof t === 'object' ? t.nombre : t) === parteEditando.trabajador);
   const nombreMostrar = typeof alias === 'object' ? (alias.alias || alias.nombre) : parteEditando.trabajador;
 
+  const fincaOpts = fincas.map(f => `<option value="${f}" ${f === parteEditando.finca ? 'selected' : ''}>${f}</option>`).join('');
+  const cultivosActuales = parteEditando.finca ? Object.keys(fincaData[parteEditando.finca] || {}) : [];
+  const cultivoOpts = cultivosActuales.map(c => `<option value="${c}" ${c === parteEditando.cultivo ? 'selected' : ''}>${c}</option>`).join('');
+  const parcelasActuales = (parteEditando.finca && parteEditando.cultivo) ? (fincaData[parteEditando.finca]?.[parteEditando.cultivo] || []) : [];
+  const parcelaOpts = parcelasActuales.map(p => `<option value="${p}" ${p === parteEditando.parcelas ? 'selected' : ''}>${p}</option>`).join('');
+
   document.getElementById('edit-parte-content').innerHTML = `
     <div style="display:grid;gap:0.7rem;padding:0.5rem 0">
       <div><strong>Trabajador:</strong> ${nombreMostrar}</div>
@@ -941,6 +950,24 @@ function editParte(id) {
         <label>Tipo de trabajo</label>
         <select id="edit-tipo" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
           ${tiposTrabajo.map(t => `<option value="${t}" ${t === parteEditando.tipo_trabajo ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Finca</label>
+        <select id="edit-finca" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px" onchange="updateEditCultivos()">
+          <option value="">Selecciona...</option>${fincaOpts}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Cultivo</label>
+        <select id="edit-cultivo" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px" onchange="updateEditParcelas()">
+          <option value="">Selecciona...</option>${cultivoOpts}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Parcela</label>
+        <select id="edit-parcela" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+          <option value="">Selecciona...</option>${parcelaOpts}
         </select>
       </div>
       <div class="field-group">
@@ -955,16 +982,35 @@ function editParte(id) {
   document.getElementById('editParteOverlay').classList.add('show');
 }
 
+function updateEditCultivos() {
+  const finca = document.getElementById('edit-finca').value;
+  const cultivos = finca ? Object.keys(fincaData[finca] || {}) : [];
+  document.getElementById('edit-cultivo').innerHTML = '<option value="">Selecciona...</option>' +
+    cultivos.map(c => `<option value="${c}">${c}</option>`).join('');
+  document.getElementById('edit-parcela').innerHTML = '<option value="">Selecciona...</option>';
+}
+
+function updateEditParcelas() {
+  const finca = document.getElementById('edit-finca').value;
+  const cultivo = document.getElementById('edit-cultivo').value;
+  const parcelas = (finca && cultivo) ? (fincaData[finca]?.[cultivo] || []) : [];
+  document.getElementById('edit-parcela').innerHTML = '<option value="">Selecciona...</option>' +
+    parcelas.map(p => `<option value="${p}">${p}</option>`).join('');
+}
+
 async function saveEditParte() {
   if (!parteEditando) return;
   const tipo = document.getElementById('edit-tipo').value;
+  const finca = document.getElementById('edit-finca').value;
+  const cultivo = document.getElementById('edit-cultivo').value;
+  const parcela = document.getElementById('edit-parcela').value;
   const horas = parseFloat(document.getElementById('edit-horas').value) || 0;
   const obs = document.getElementById('edit-obs').value.trim();
 
   const res = await fetch(`${SUPABASE_URL}/rest/v1/partes_trabajo?id=eq.${parteEditando.id}`, {
     method: 'PATCH',
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-    body: JSON.stringify({ tipo_trabajo: tipo, horas, observaciones_tarea: obs || null })
+    body: JSON.stringify({ tipo_trabajo: tipo, finca, cultivo, parcelas: parcela, horas, observaciones_tarea: obs || null })
   });
 
   if (res.ok) {
