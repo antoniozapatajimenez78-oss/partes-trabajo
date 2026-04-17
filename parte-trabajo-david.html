@@ -187,6 +187,13 @@
       <button type="button" class="btn-clear" onclick="clearForm()">Limpiar formulario</button>
     </div>
   </form>
+
+  <!-- PARTES PENDIENTES -->
+  <div class="card" id="partes-pendientes-card" style="margin-top:1rem;display:none">
+    <div class="card-title" style="color:#e67e22">🕐 Partes pendientes de envío a Sheets</div>
+    <p style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.8rem">Puedes modificar o borrar estos partes durante los próximos 30 minutos.</p>
+    <div id="partes-pendientes-list"></div>
+  </div>
 </div>
 
 <!-- Review overlay -->
@@ -201,6 +208,18 @@
   </div>
 </div>
 </div><!-- end app-content -->
+
+<!-- Edit parte overlay -->
+<div class="overlay" id="editParteOverlay">
+  <div class="overlay-box">
+    <div class="overlay-title">✏️ Modificar Parte</div>
+    <div id="edit-parte-content" style="font-size:0.88rem;max-height:60vh;overflow-y:auto"></div>
+    <div class="overlay-actions">
+      <button class="btn-back" onclick="document.getElementById('editParteOverlay').classList.remove('show')">Cancelar</button>
+      <button class="btn-confirm" id="btn-save-edit" onclick="saveEditParte()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
 
 <!-- Worker detail overlay -->
 <div class="overlay" id="workerDetailOverlay">
@@ -744,6 +763,7 @@ async function confirmAndSend() {
   document.getElementById('successOverlay').classList.add('show');
   window._parteData = null;
   loadTrabajadores();
+  loadPartesPendientes();
 }
 
 document.getElementById('mainForm').addEventListener('submit', function(e) {
@@ -786,6 +806,7 @@ document.getElementById('fecha').addEventListener('change', () => {
   state.trabajadores = [];
   loadTrabajadores();
   checkIncidencias();
+  loadPartesPendientes();
 });
 
 async function loadTareasDavid() {
@@ -847,6 +868,113 @@ function buildFincaData(dbFincas, dbCultivos, dbParcelas) {
   });
 }
 
+let partesPendientes = [];
+let parteEditando = null;
+
+async function loadPartesPendientes() {
+  try {
+    const fecha = document.getElementById('fecha').value || today;
+    const ahora = new Date();
+    const hace30 = new Date(ahora.getTime() - 30 * 60 * 1000).toISOString();
+
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/partes_trabajo?enviado_sheets=eq.false&fecha=eq.${fecha}&created_at=gte.${hace30}&order=created_at.desc&select=*`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!res.ok) return;
+    partesPendientes = await res.json();
+
+    const card = document.getElementById('partes-pendientes-card');
+    const list = document.getElementById('partes-pendientes-list');
+
+    if (partesPendientes.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+
+    card.style.display = 'block';
+    list.innerHTML = partesPendientes.map(p => {
+      const created = new Date(p.created_at);
+      const expira = new Date(created.getTime() + 30 * 60 * 1000);
+      const minRestantes = Math.max(0, Math.round((expira - ahora) / 60000));
+      const alias = trabajadores.find(t => (typeof t === 'object' ? t.nombre : t) === p.trabajador);
+      const nombreMostrar = typeof alias === 'object' ? (alias.alias || alias.nombre) : p.trabajador;
+      return `
+        <div style="background:var(--cream);border-radius:8px;padding:0.7rem;margin-bottom:0.5rem;border-left:3px solid #e67e22">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem">
+            <div style="font-weight:700">${nombreMostrar}</div>
+            <div style="font-size:0.72rem;color:#e67e22">⏳ ${minRestantes} min</div>
+          </div>
+          <div style="font-size:0.82rem;color:var(--text-mid)">${p.tipo_trabajo} · ${p.horas}h · ${p.finca || ''}${p.parcelas ? ' · ' + p.parcelas : ''}</div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+            <button class="btn-sm" style="background:#2980b9;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.7rem;cursor:pointer;font-size:0.78rem" onclick="editParte('${p.id}')">✏️ Modificar</button>
+            <button class="btn-sm btn-danger" onclick="deleteParte('${p.id}')">🗑️ Borrar</button>
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) { console.warn('Error cargando pendientes:', e); }
+}
+
+async function deleteParte(id) {
+  if (!confirm('¿Borrar este parte?')) return;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/partes_trabajo?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (res.ok) {
+    await loadPartesPendientes();
+    await loadTrabajadores();
+  }
+}
+
+function editParte(id) {
+  parteEditando = partesPendientes.find(p => p.id === id);
+  if (!parteEditando) return;
+
+  const alias = trabajadores.find(t => (typeof t === 'object' ? t.nombre : t) === parteEditando.trabajador);
+  const nombreMostrar = typeof alias === 'object' ? (alias.alias || alias.nombre) : parteEditando.trabajador;
+
+  document.getElementById('edit-parte-content').innerHTML = `
+    <div style="display:grid;gap:0.7rem;padding:0.5rem 0">
+      <div><strong>Trabajador:</strong> ${nombreMostrar}</div>
+      <div class="field-group">
+        <label>Tipo de trabajo</label>
+        <select id="edit-tipo" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+          ${tiposTrabajo.map(t => `<option value="${t}" ${t === parteEditando.tipo_trabajo ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Horas</label>
+        <input type="number" id="edit-horas" value="${parteEditando.horas}" min="0" max="24" step="0.5" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+      </div>
+      <div class="field-group">
+        <label>Observaciones</label>
+        <input type="text" id="edit-obs" value="${parteEditando.observaciones_tarea || ''}" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+      </div>
+    </div>`;
+  document.getElementById('editParteOverlay').classList.add('show');
+}
+
+async function saveEditParte() {
+  if (!parteEditando) return;
+  const tipo = document.getElementById('edit-tipo').value;
+  const horas = parseFloat(document.getElementById('edit-horas').value) || 0;
+  const obs = document.getElementById('edit-obs').value.trim();
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/partes_trabajo?id=eq.${parteEditando.id}`, {
+    method: 'PATCH',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ tipo_trabajo: tipo, horas, observaciones_tarea: obs || null })
+  });
+
+  if (res.ok) {
+    document.getElementById('editParteOverlay').classList.remove('show');
+    parteEditando = null;
+    await loadPartesPendientes();
+    await loadTrabajadores();
+  }
+}
+
 async function checkIncidencias() {
   try {
     const fecha = document.getElementById('fecha').value || today;
@@ -888,6 +1016,7 @@ async function init() {
     document.getElementById('app-content').style.display = 'block';
   }
   checkIncidencias();
+  loadPartesPendientes();
 }
 
 init();
