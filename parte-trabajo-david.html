@@ -226,7 +226,7 @@
 <script>
 const SUPABASE_URL = 'https://jecqfntpvzwipjcleqbl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplY3FmbnRwdnp3aXBqY2xlcWJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzE2NjIsImV4cCI6MjA5MDQ0NzY2Mn0.J26k1VElLscwOxhGTBXpyw-OnXZ-BZOiBW5vCG3CreI';
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwyV6tOuCVbt-rpaN5rkmdDB7VGfAYCwdrMR1LJtQPotj43_dw78RULq1Bt5Op1mL7P/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz68SRnr3aFPsolIHFBWxn_Efkd1cKK3o1Fy9gQQXYkzMBnpKkFybcaNZYEQLxqGIhJ/exec';
 
 const trabajadores = []; // Se cargan desde Supabase
 const tiposTrabajo = []; // Se cargan desde Supabase
@@ -242,20 +242,20 @@ async function loadTrabajadores() {
   const cached = localStorage.getItem('cache_trabajadores');
   if (cached) {
     trabajadores.length = 0;
-    JSON.parse(cached).forEach(t => trabajadores.push(t));
+    JSON.parse(cached).forEach(t => trabajadores.push(typeof t === 'string' ? { nombre: t, alias: t, nombre_completo: t } : t));
   }
 
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/trabajadores?fecha_alta=lte.${fecha}&or=(fecha_baja.is.null,fecha_baja.gte.${fecha})&order=nombre.asc&select=nombre`,
+      `${SUPABASE_URL}/rest/v1/trabajadores?fecha_alta=lte.${fecha}&or=(fecha_baja.is.null,fecha_baja.gte.${fecha})&order=orden.asc,nombre.asc&select=nombre,alias,nombre_completo`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     if (res.ok) {
       const data = await res.json();
-      const nombres = data.map(t => t.nombre);
-      localStorage.setItem('cache_trabajadores', JSON.stringify(nombres));
+      const trabajadoresData = data.map(t => ({ nombre: t.nombre, alias: t.alias || t.nombre, nombre_completo: t.nombre_completo || t.nombre }));
+      localStorage.setItem('cache_trabajadores', JSON.stringify(trabajadoresData));
       trabajadores.length = 0;
-      nombres.forEach(n => trabajadores.push(n));
+      trabajadoresData.forEach(t => trabajadores.push(t));
     }
   } catch(e) { console.warn('Error cargando trabajadores:', e); }
 
@@ -293,7 +293,9 @@ function buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador, ausencias
   const grid = document.getElementById('trabajador-grid');
   grid.innerHTML = '';
 
-  trabajadores.forEach(nombre => {
+  trabajadores.forEach(t => {
+    const nombre = typeof t === 'string' ? t : t.nombre;
+    const alias = typeof t === 'string' ? t : (t.alias || t.nombre);
     const tieneParte = trabajadoresConParte.has(nombre);
     const horas = (horasPorTrabajador && horasPorTrabajador[nombre]) || 0;
     const ausencia = ausenciasPorTrabajador && ausenciasPorTrabajador[nombre];
@@ -318,7 +320,7 @@ function buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador, ausencias
       horasColor = horas > 0 ? '#2d6a2d' : '#e67e22';
     }
 
-    lbl.innerHTML = `<span style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox"><span class="dot"></span>${nombre}</span>${horasText ? `<span style="font-size:0.72rem;font-weight:700;color:${horasColor};margin-top:0.15rem;padding-left:1.4rem">${horasText}</span>` : ''}`;
+    lbl.innerHTML = `<span style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox"><span class="dot"></span>${alias}</span>${horasText ? `<span style="font-size:0.72rem;font-weight:700;color:${horasColor};margin-top:0.15rem;padding-left:1.4rem">${horasText}</span>` : ''}`;
 
     const cb = lbl.querySelector('input');
     cb.addEventListener('change', () => {
@@ -640,9 +642,16 @@ function buildParteData() {
     });
   });
 
+  // Get nombre_completo for each selected worker
+  const trabajadoresCompletos = state.trabajadores.map(nom => {
+    const t = trabajadores.find(w => (typeof w === 'string' ? w : w.nombre) === nom);
+    return typeof t === 'object' ? t : { nombre: nom, alias: nom, nombre_completo: nom };
+  });
+
   return {
     trabajadores: state.trabajadores,
-    trabajador: state.trabajadores.join(', '), // for Supabase/Sheets compat
+    trabajadoresCompletos,
+    trabajador: state.trabajadores.join(', '),
     fecha: document.getElementById('fecha').value,
     tareas,
     observaciones_generales: document.getElementById('observaciones').value.trim() || null,
@@ -682,18 +691,22 @@ function closeReview() { document.getElementById('reviewOverlay').classList.remo
 async function saveToSupabase(parte) {
   try {
     const promises = [];
-    parte.trabajadores.forEach(trabajador => {
+    parte.trabajadoresCompletos.forEach(t => {
       parte.tareas.forEach(tarea => {
         promises.push(fetch(`${SUPABASE_URL}/rest/v1/partes_trabajo`, {
           method: 'POST',
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
           body: JSON.stringify({
-            trabajador, fecha: parte.fecha,
+            trabajador: t.nombre,
+            trabajador_alias: t.alias,
+            trabajador_completo: t.nombre_completo,
+            fecha: parte.fecha,
             finca: tarea.finca, cultivo: tarea.cultivo, parcelas: tarea.parcelas,
             tipo_trabajo: tarea.tipo, horas: tarea.horas,
             observaciones_tarea: tarea.observaciones || null,
             observaciones_generales: parte.observaciones_generales,
-            total_horas_parte: parte.total_horas
+            total_horas_parte: parte.total_horas,
+            enviado_sheets: false
           })
         }));
       });
@@ -720,19 +733,17 @@ async function confirmAndSend() {
   btn.textContent = 'Enviando...';
   btn.disabled = true;
 
-  // Save to Supabase first — this is the critical save
   const savedDB = await saveToSupabase(parte);
 
-  // Show success immediately without waiting for Sheets
   btn.textContent = '✅ Confirmar y Enviar';
   btn.disabled = false;
   document.getElementById('reviewOverlay').classList.remove('show');
-  document.getElementById('success-msg').textContent = savedDB ? '✅ Parte registrado correctamente.' : '⚠️ Hubo un problema al guardar. Contacta con la oficina.';
+  document.getElementById('success-msg').textContent = savedDB
+    ? '✅ Parte registrado. Tienes 30 minutos para modificarlo si es necesario.'
+    : '⚠️ Hubo un problema al guardar. Contacta con la oficina.';
   document.getElementById('successOverlay').classList.add('show');
   window._parteData = null;
-
-  // Send to Sheets in background — don't wait
-  saveToSheets(parte);
+  loadTrabajadores();
 }
 
 document.getElementById('mainForm').addEventListener('submit', function(e) {
