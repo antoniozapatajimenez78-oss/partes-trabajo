@@ -211,6 +211,13 @@
       <button type="button" class="btn-submit" style="background:#c0392b" onclick="marcarAusencia()">Marcar como ausente</button>
     </div>
   </form>
+
+  <!-- PARTES PENDIENTES -->
+  <div class="card" id="partes-pendientes-card" style="margin-top:1rem;display:none">
+    <div class="card-title" style="color:#e67e22">🕐 Partes pendientes de envío a Sheets</div>
+    <p style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.8rem">Puedes modificar o borrar estos partes durante los próximos 30 minutos.</p>
+    <div id="partes-pendientes-list"></div>
+  </div>
 </div>
 
 <!-- Review overlay -->
@@ -237,6 +244,18 @@
 </div>
 
 <!-- Success overlay -->
+<!-- Edit parte overlay -->
+<div class="overlay" id="editParteOverlay">
+  <div class="overlay-box">
+    <div class="overlay-title">✏️ Modificar Parte</div>
+    <div id="edit-parte-content" style="font-size:0.88rem;max-height:60vh;overflow-y:auto"></div>
+    <div class="overlay-actions">
+      <button class="btn-back" onclick="document.getElementById('editParteOverlay').classList.remove('show')">Cancelar</button>
+      <button class="btn-confirm" onclick="saveEditParte()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="successOverlay">
   <div class="overlay-box success-box">
     <div class="success-icon">✅</div>
@@ -249,7 +268,7 @@
 <script>
 const SUPABASE_URL = 'https://jecqfntpvzwipjcleqbl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplY3FmbnRwdnp3aXBqY2xlcWJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzE2NjIsImV4cCI6MjA5MDQ0NzY2Mn0.J26k1VElLscwOxhGTBXpyw-OnXZ-BZOiBW5vCG3CreI';
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyquqXNGTKid_0eVvt00izXwzmYFcMebQWlgHWFgNy-5cps0BWfyQcdHAxDnjuvzNofkQ/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyzbldsPmbmuw0_xj2peuVaemfoH1jHqqDcLeMlPNLkRCn8gBHMPt4zuI2am0ZFWH0l/exec';
 let ENCARGADO_NOMBRE = '';
 
 const trabajadores = []; // Se cargan desde Supabase
@@ -375,8 +394,9 @@ function addTarea() {
       otroInput.style.display = val === '__otro__' ? 'block' : 'none';
       if (val !== '__otro__') otroInput.value = '';
 
-      // Hide cultivo/parcela for Manten. General
+      // Hide cultivo/parcela for Manten. General, show with Todo for Manten. Instalaciones
       const esMantenimientoGeneral = val === 'Manten. General';
+      const esMantenimientoInstalaciones = val === 'Mantenimiento instalaciones';
       const gCultivo = document.getElementById(`g-cultivo-${id}`);
       const gParcela = document.getElementById(`g-parcela-${id}`);
       if (gCultivo) gCultivo.style.display = esMantenimientoGeneral ? 'none' : '';
@@ -384,9 +404,17 @@ function addTarea() {
       if (esMantenimientoGeneral) {
         div.dataset.cultivos = '["General"]';
         div.dataset.parcelas = '["General"]';
+      } else if (esMantenimientoInstalaciones) {
+        // Add "Todo" option to cultivo and parcela when finca is selected
+        div.dataset.cultivos = '[]';
+        div.dataset.parcelas = '[]';
+        const fincaActual = div.dataset.finca;
+        if (fincaActual) buildCultivoSelectorConTodo(id, fincaActual);
       } else {
         div.dataset.cultivos = '[]';
         div.dataset.parcelas = '[]';
+        const fincaActual = div.dataset.finca;
+        if (fincaActual) buildCultivoSelector(id, fincaActual);
       }
     });
   });
@@ -401,7 +429,13 @@ function addTarea() {
       div.dataset.cultivos = '[]';
       div.dataset.parcelas = '[]';
       document.getElementById(`g-finca-${n}`)?.classList.remove('field-error');
-      buildCultivoSelector(n, finca);
+      const tipoChecked = div.querySelector('.tipo-opt.checked');
+      const tipoVal = tipoChecked ? tipoChecked.dataset.val : '';
+      if (tipoVal === 'Mantenimiento instalaciones') {
+        buildCultivoSelectorConTodo(n, finca);
+      } else {
+        buildCultivoSelector(n, finca);
+      }
     });
   });
 }
@@ -429,6 +463,67 @@ function buildCultivoSelector(n, finca) {
     container.appendChild(lbl);
   });
   document.getElementById(`parcela-sel-${n}`).innerHTML = '<div class="selector-hint">Selecciona primero un cultivo</div>';
+}
+
+function buildCultivoSelectorConTodo(n, finca) {
+  const container = document.getElementById(`cultivo-sel-${n}`);
+  container.innerHTML = '';
+  const cultivos = ['Todo', ...Object.keys(fincaData[finca] || {})];
+  cultivos.forEach(c => {
+    const lbl = document.createElement('label');
+    lbl.className = 'opt-label';
+    lbl.innerHTML = `<input type="checkbox"><span class="dot"></span>${c}`;
+    const cb = lbl.querySelector('input');
+    cb.addEventListener('change', () => {
+      lbl.classList.toggle('checked', cb.checked);
+      const row = document.getElementById(`tarea-row-${n}`);
+      let cvs = JSON.parse(row.dataset.cultivos);
+      if (cb.checked) {
+        if (c === 'Todo') {
+          // Select only Todo, deselect others
+          container.querySelectorAll('input').forEach(i => { i.checked = false; i.parentElement.classList.remove('checked'); });
+          cb.checked = true; lbl.classList.add('checked');
+          cvs = ['Todo'];
+        } else {
+          cvs = cvs.filter(x => x !== 'Todo');
+          container.querySelector('input[value="Todo"]')?.parentElement.classList.remove('checked');
+          if (!cvs.includes(c)) cvs.push(c);
+        }
+      } else { cvs = cvs.filter(x => x !== c); }
+      row.dataset.cultivos = JSON.stringify(cvs);
+      row.dataset.parcelas = '[]';
+      document.getElementById(`g-cultivo-${n}`)?.classList.remove('field-error');
+      if (cvs.includes('Todo')) {
+        const pSel = document.getElementById(`parcela-sel-${n}`);
+        pSel.innerHTML = '';
+        addParcelaOpt(pSel, n, 'Todo');
+      } else {
+        buildParcelaSelectorConTodo(n, row.dataset.finca, cvs);
+      }
+    });
+    container.appendChild(lbl);
+  });
+  document.getElementById(`parcela-sel-${n}`).innerHTML = '<div class="selector-hint">Selecciona primero un cultivo</div>';
+}
+
+function buildParcelaSelectorConTodo(n, finca, cultivos) {
+  const container = document.getElementById(`parcela-sel-${n}`);
+  container.innerHTML = '';
+  if (!cultivos.length) { container.innerHTML = '<div class="selector-hint">Selecciona primero un cultivo</div>'; return; }
+  addParcelaOpt(container, n, 'Todo');
+  if (cultivos.length > 1) {
+    cultivos.forEach(c => {
+      const parcelas = fincaData[finca]?.[c] || [];
+      if (!parcelas.length) return;
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'grid-column:1/-1;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--brown-mid);margin-top:0.4rem;padding-bottom:0.2rem;border-bottom:1px solid var(--border)';
+      hdr.textContent = c;
+      container.appendChild(hdr);
+      parcelas.forEach(p => addParcelaOpt(container, n, p));
+    });
+  } else {
+    (fincaData[finca]?.[cultivos[0]] || []).forEach(p => addParcelaOpt(container, n, p));
+  }
 }
 
 function buildParcelaSelector(n, finca, cultivos) {
@@ -596,7 +691,8 @@ async function saveToSupabase(parte) {
             tipo_trabajo: tarea.tipo, horas: tarea.horas,
             observaciones_tarea: tarea.observaciones || null,
             observaciones_generales: parte.observaciones_generales,
-            total_horas_parte: parte.total_horas
+            total_horas_parte: parte.total_horas,
+            enviado_sheets: false
           })
         }));
       });
@@ -606,29 +702,30 @@ async function saveToSupabase(parte) {
   } catch(e) { console.error('Supabase error:', e); return false; }
 }
 
-async function saveToSheets(parte) {
-  if (!SHEETS_URL) return true;
-  try {
-    const formData = new FormData();
-    formData.append('payload', JSON.stringify(parte));
-    await fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: formData });
-    return true;
-  } catch(e) { return false; }
-}
-
 async function confirmAndSend() {
   const parte = window._parteData;
   if (!parte) return;
   const btn = document.getElementById('btn-confirm');
   btn.textContent = 'Enviando...';
   btn.disabled = true;
-  const [savedDB] = await Promise.all([saveToSupabase(parte), saveToSheets(parte)]);
+  const savedDB = await saveToSupabase(parte);
+
+  // Send ausencia to Sheets immediately via Apps Script
+  if (parte.tareas.some(t => t.tipo === 'Ausente' || t.tipo === 'No llamado')) {
+    const formData = new FormData();
+    formData.append('payload', JSON.stringify({ ausencia: true, trabajador: ENCARGADO_NOMBRE, fecha: parte.fecha }));
+    fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: formData });
+  }
+
   btn.textContent = '✅ Confirmar y Enviar';
   btn.disabled = false;
   document.getElementById('reviewOverlay').classList.remove('show');
-  document.getElementById('success-msg').textContent = savedDB ? '✅ Parte registrado correctamente.' : '⚠️ Hubo un problema al guardar. Contacta con la oficina.';
+  document.getElementById('success-msg').textContent = savedDB
+    ? '✅ Parte registrado. Tienes 30 minutos para modificarlo si es necesario.'
+    : '⚠️ Hubo un problema al guardar. Contacta con la oficina.';
   document.getElementById('successOverlay').classList.add('show');
   window._parteData = null;
+  loadPartesPendientes();
 }
 
 document.getElementById('mainForm').addEventListener('submit', function(e) {
@@ -870,6 +967,147 @@ async function marcarAusencia() {
   }
 }
 
+let partesPendientes = [];
+let parteEditando = null;
+
+async function loadPartesPendientes() {
+  try {
+    const ahora = new Date();
+    const hace30 = new Date(ahora.getTime() - 30 * 60 * 1000).toISOString();
+    const fecha = document.getElementById('fecha').value;
+
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/partes_encargados?enviado_sheets=eq.false&trabajador=eq.${encodeURIComponent(ENCARGADO_NOMBRE)}&fecha=eq.${fecha}&created_at=gte.${hace30}&order=created_at.desc&select=*`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!res.ok) return;
+    partesPendientes = await res.json();
+
+    const card = document.getElementById('partes-pendientes-card');
+    const list = document.getElementById('partes-pendientes-list');
+
+    if (partesPendientes.length === 0) { card.style.display = 'none'; return; }
+
+    card.style.display = 'block';
+    list.innerHTML = partesPendientes.map(p => {
+      const created = new Date(p.created_at);
+      const expira = new Date(created.getTime() + 30 * 60 * 1000);
+      const minRestantes = Math.max(0, Math.round((expira - ahora) / 60000));
+      return `
+        <div style="background:var(--cream);border-radius:8px;padding:0.7rem;margin-bottom:0.5rem;border-left:3px solid #e67e22">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem">
+            <div style="font-weight:700">${p.tipo_trabajo} · ${p.horas}h</div>
+            <div style="font-size:0.72rem;color:#e67e22">⏳ ${minRestantes} min</div>
+          </div>
+          <div style="font-size:0.82rem;color:var(--text-mid)">${p.finca || ''}${p.parcelas ? ' · ' + p.parcelas : ''}</div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+            <button class="btn-submit" style="padding:0.3rem 0.7rem;font-size:0.78rem;background:#2980b9" onclick="editParte('${p.id}')">✏️ Modificar</button>
+            <button class="btn-submit" style="padding:0.3rem 0.7rem;font-size:0.78rem;background:#c0392b" onclick="deleteParte('${p.id}')">🗑️ Borrar</button>
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) { console.warn('Error cargando pendientes:', e); }
+}
+
+async function deleteParte(id) {
+  if (!confirm('¿Borrar este parte?')) return;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/partes_encargados?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (res.ok) {
+    partesPendientes = partesPendientes.filter(p => p.id !== id);
+    await loadPartesPendientes();
+  } else { alert('Error al borrar el parte.'); }
+}
+
+function editParte(id) {
+  parteEditando = partesPendientes.find(p => p.id === id);
+  if (!parteEditando) return;
+
+  const fincaOpts = fincas.map(f => `<option value="${f}" ${f === parteEditando.finca ? 'selected' : ''}>${f}</option>`).join('');
+  const cultivosActuales = parteEditando.finca ? Object.keys(fincaData[parteEditando.finca] || {}) : [];
+  const cultivoOpts = ['Todo', ...cultivosActuales].map(c => `<option value="${c}" ${c === parteEditando.cultivo ? 'selected' : ''}>${c}</option>`).join('');
+  const parcelasActuales = (parteEditando.finca && parteEditando.cultivo && parteEditando.cultivo !== 'Todo')
+    ? (fincaData[parteEditando.finca]?.[parteEditando.cultivo] || []) : [];
+  const parcelaOpts = ['Todo', ...parcelasActuales].map(p => `<option value="${p}" ${p === parteEditando.parcelas ? 'selected' : ''}>${p}</option>`).join('');
+
+  document.getElementById('edit-parte-content').innerHTML = `
+    <div style="display:grid;gap:0.7rem;padding:0.5rem 0">
+      <div class="field-group">
+        <label>Tipo de trabajo</label>
+        <select id="edit-tipo" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+          ${tiposTrabajo.map(t => `<option value="${t}" ${t === parteEditando.tipo_trabajo ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Finca</label>
+        <select id="edit-finca" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px" onchange="updateEditCultivos()">
+          <option value="">Selecciona...</option>${fincaOpts}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Cultivo</label>
+        <select id="edit-cultivo" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px" onchange="updateEditParcelas()">
+          <option value="">Selecciona...</option>${cultivoOpts}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Parcela</label>
+        <select id="edit-parcela" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+          <option value="">Selecciona...</option>${parcelaOpts}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Horas</label>
+        <input type="number" id="edit-horas" value="${parteEditando.horas}" min="0" max="24" step="0.5" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+      </div>
+      <div class="field-group">
+        <label>Observaciones</label>
+        <input type="text" id="edit-obs" value="${parteEditando.observaciones_tarea || ''}" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+      </div>
+    </div>`;
+  document.getElementById('editParteOverlay').classList.add('show');
+}
+
+function updateEditCultivos() {
+  const finca = document.getElementById('edit-finca').value;
+  const cultivos = finca ? Object.keys(fincaData[finca] || {}) : [];
+  document.getElementById('edit-cultivo').innerHTML = '<option value="">Selecciona...</option>' +
+    ['Todo', ...cultivos].map(c => `<option value="${c}">${c}</option>`).join('');
+  document.getElementById('edit-parcela').innerHTML = '<option value="">Selecciona...</option><option value="Todo">Todo</option>';
+}
+
+function updateEditParcelas() {
+  const finca = document.getElementById('edit-finca').value;
+  const cultivo = document.getElementById('edit-cultivo').value;
+  const parcelas = (finca && cultivo && cultivo !== 'Todo') ? (fincaData[finca]?.[cultivo] || []) : [];
+  document.getElementById('edit-parcela').innerHTML = '<option value="">Selecciona...</option>' +
+    ['Todo', ...parcelas].map(p => `<option value="${p}">${p}</option>`).join('');
+}
+
+async function saveEditParte() {
+  if (!parteEditando) return;
+  const tipo = document.getElementById('edit-tipo').value;
+  const finca = document.getElementById('edit-finca').value;
+  const cultivo = document.getElementById('edit-cultivo').value;
+  const parcela = document.getElementById('edit-parcela').value;
+  const horas = parseFloat(document.getElementById('edit-horas').value) || 0;
+  const obs = document.getElementById('edit-obs').value.trim();
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/partes_encargados?id=eq.${parteEditando.id}`, {
+    method: 'PATCH',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ tipo_trabajo: tipo, finca, cultivo, parcelas: parcela, horas, observaciones_tarea: obs || null })
+  });
+
+  if (res.ok) {
+    document.getElementById('editParteOverlay').classList.remove('show');
+    parteEditando = null;
+    await loadPartesPendientes();
+  }
+}
+
 async function checkPin() {
   const pin = document.getElementById('pinInput').value.trim();
   if (!pin) return;
@@ -887,11 +1125,10 @@ async function checkPin() {
       document.getElementById('encargadoSubtitle').textContent = `Registro diario de jornada · ${ENCARGADO_NOMBRE}`;
       document.getElementById('encargado-nombre-display').textContent = ENCARGADO_NOMBRE;
       document.getElementById('fechaAusencia').value = today;
-      document.getElementById('loading-enc').style.display = 'block';
-      document.getElementById('app-content-enc').style.display = 'none';
       await Promise.all([loadTareas(), loadFincasFromDB()]);
       await loadCalendario();
       addTarea();
+      loadPartesPendientes();
       document.getElementById('loading-enc').style.display = 'none';
       document.getElementById('app-content-enc').style.display = 'block';
     } else {
