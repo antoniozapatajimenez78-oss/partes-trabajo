@@ -1146,7 +1146,6 @@ async function checkPin() {
       state.trabajadores = [ENCARGADO_NOMBRE];
       document.getElementById('pinScreen').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
-      document.getElementById('encargadoSubtitle').textContent = `Registro diario de jornada · ${ENCARGADO_NOMBRE}`;
       document.getElementById('encargado-nombre-display').textContent = ENCARGADO_NOMBRE;
       document.getElementById('fechaAusencia').value = today;
       await Promise.all([loadTareas(), loadFincasFromDB()]);
