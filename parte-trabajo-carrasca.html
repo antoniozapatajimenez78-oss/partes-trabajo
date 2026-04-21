@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Jornada — La Carrasca</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+    :root {
+    --brown-dark: #2c1a0e;
+    --brown-mid: #5c3317;
+    --brown-light: #8b5e3c;
+    --amber: #d4860a;
+    --amber-light: #f0b429;
+    --cream: #faf6f0;
+    --white: #fdfcf9;
+    --text-dark: #2c1a0e;
+    --text-mid: #5c3317;
+    --border: #e0cdb8;
+    --shadow: rgba(44,26,14,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    min-height: 100vh;
+    color: var(--text-dark);
+    background-image: radial-gradient(circle at 10% 20%, rgba(212,134,10,0.07) 0%, transparent 50%), radial-gradient(circle at 90% 80%, rgba(92,51,23,0.06) 0%, transparent 50%);
+  }
+  .header { background: var(--brown-dark); padding: 2rem 1.5rem 1.5rem; position: relative; overflow: hidden; }
+  .header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(212,134,10,0.12); }
+  .header-inner { position:relative; z-index:1; max-width:640px; margin:0 auto; }
+  .header-tag { display:inline-block; background:var(--amber-light); color:var(--brown-dark); font-size:0.65rem; font-weight:600; letter-spacing:0.15em; text-transform:uppercase; padding:0.3rem 0.75rem; border-radius:20px; margin-bottom:0.75rem; }
+  .header h1 { font-family:'Bebas Neue',sans-serif; font-size:2.8rem; color:var(--white); letter-spacing:0.05em; line-height:1; margin-bottom:0.4rem; }
+  .header p { color:rgba(255,255,255,0.5); font-size:0.85rem; font-weight:300; }
+  .form-container { max-width:640px; margin:0 auto; padding:1.5rem 1rem 3rem; }
+  .card { background:var(--white); border-radius:16px; padding:1.5rem; margin-bottom:1rem; border:1px solid var(--border); box-shadow:0 2px 12px var(--shadow); animation:fadeUp 0.4s ease both; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .card-title { font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:0.08em; color:var(--brown-mid); margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem; }
+  .card-title .icon { width:28px; height:28px; background:var(--amber); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:0.85rem; }
+  label { display:block; font-size:0.78rem; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-mid); margin-bottom:0.4rem; }
+  label .req { color:#c0392b; margin-left:2px; }
+  input[type="date"], input[type="text"], input[type="number"], select, textarea { width:100%; padding:0.7rem 1rem; border:1.5px solid var(--border); border-radius:10px; font-family:'DM Sans',sans-serif; font-size:0.95rem; color:var(--text-dark); background:var(--cream); transition:border-color 0.2s,box-shadow 0.2s; outline:none; -webkit-appearance:none; }
+  input:focus, select:focus, textarea:focus { border-color:var(--amber); box-shadow:0 0 0 3px rgba(212,134,10,0.12); background:var(--white); }
+  textarea { resize:vertical; min-height:60px; }
+  .field-group { margin-bottom:1.1rem; }
+  .field-group:last-child { margin-bottom:0; }
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; }
+  .options-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:0.4rem; }
+  .options-grid.compact { grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); }
+  .opt-label { display:flex; align-items:center; gap:0.5rem; padding:0.55rem 0.75rem; border:1.5px solid var(--border); border-radius:9px; cursor:pointer; font-size:0.82rem; font-weight:500; color:var(--text-mid); transition:all 0.15s; background:var(--cream); text-transform:none; letter-spacing:0; -webkit-tap-highlight-color:transparent; }
+  .opt-label:hover { border-color:var(--amber); background:rgba(212,134,10,0.05); }
+  .opt-label input { display:none; }
+  .opt-label.checked { border-color:#2980b9; background:rgba(41,128,185,0.15); color:#1a5276; font-weight:700; box-shadow:0 0 0 2px #2980b9; }
+  .opt-label .dot { width:14px; height:14px; border:2px solid var(--border); border-radius:50%; flex-shrink:0; transition:all 0.15s; }
+  .opt-label.checked .dot { border-color:#2980b9; background:#2980b9; }
+
+  /* Tarea row */
+  .tarea-row { background:var(--cream); border:1.5px solid var(--border); border-radius:12px; padding:1rem; margin-bottom:0.75rem; position:relative; animation:fadeUp 0.25s ease both; }
+  .tarea-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; }
+  .tarea-num { font-family:'Bebas Neue',sans-serif; font-size:1.1rem; color:var(--amber); }
+  .btn-remove-tarea { background:none; border:none; color:#c0392b; font-size:1.1rem; cursor:pointer; padding:0.2rem; opacity:0.6; transition:opacity 0.15s; }
+  .btn-remove-tarea:hover { opacity:1; }
+  .tarea-section { font-size:0.7rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--brown-mid); opacity:0.6; margin:0.6rem 0 0.3rem; }
+  .tipo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:0.4rem; }
+  .tipo-opt input { display:none; }
+  .finca-selector { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:0.4rem; }
+  .cultivo-selector { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:0.4rem; margin-top:0.4rem; }
+  .parcela-selector { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:0.4rem; margin-top:0.4rem; }
+  .selector-hint { font-size:0.78rem; color:var(--text-mid); opacity:0.5; padding:0.3rem 0; }
+  .horas-row { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; margin-top:0.6rem; }
+
+  .btn-add-tarea { width:100%; padding:0.7rem; background:transparent; border:1.5px dashed var(--amber); border-radius:10px; color:var(--amber); font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:600; cursor:pointer; transition:all 0.2s; margin-top:0.75rem; }
+  .btn-add-tarea:hover { background:rgba(212,134,10,0.06); }
+
+  .submit-area { padding:0 0 1rem; }
+  .btn-submit { width:100%; padding:1rem; background:var(--brown-dark); color:var(--white); border:none; border-radius:12px; font-family:'Bebas Neue',sans-serif; font-size:1.2rem; letter-spacing:0.12em; cursor:pointer; transition:all 0.2s; }
+  .btn-submit:hover { background:var(--brown-mid); transform:translateY(-1px); box-shadow:0 6px 20px rgba(44,26,14,0.2); }
+  .btn-submit:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
+  .btn-clear { width:100%; margin-top:0.6rem; padding:0.7rem; background:transparent; color:var(--text-mid); border:1.5px solid var(--border); border-radius:12px; font-family:'DM Sans',sans-serif; font-size:0.85rem; cursor:pointer; transition:all 0.2s; }
+  .btn-clear:hover { border-color:#c0392b; color:#c0392b; }
+  .required-note { font-size:0.78rem; color:var(--text-mid); margin-bottom:1.2rem; opacity:0.7; }
+  .error-msg { font-size:0.75rem; color:#c0392b; margin-top:0.3rem; display:none; }
+  .field-error .error-msg { display:block; }
+
+  /* Overlay */
+  .overlay { display:none; position:fixed; inset:0; background:rgba(44,26,14,0.85); z-index:100; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+  .overlay.show { display:flex; }
+  .overlay-box { background:var(--white); border-radius:20px; padding:1.5rem; max-width:420px; width:95%; max-height:85vh; overflow-y:auto; animation:popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both; }
+  @keyframes popIn { from{opacity:0;transform:scale(0.85)} to{opacity:1;transform:scale(1)} }
+  .overlay-title { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:0.05em; color:var(--brown-dark); margin-bottom:1rem; border-bottom:2px solid var(--border); padding-bottom:0.75rem; }
+  .overlay-actions { display:flex; gap:0.75rem; margin-top:1.25rem; border-top:1px solid var(--border); padding-top:1rem; }
+  .btn-back { flex:1; padding:0.75rem; background:transparent; border:1.5px solid var(--border); border-radius:10px; font-family:'DM Sans',sans-serif; font-size:0.9rem; cursor:pointer; color:var(--text-mid); }
+  .btn-confirm { flex:1.5; padding:0.75rem; background:var(--brown-dark); color:white; border:none; border-radius:10px; font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:0.08em; cursor:pointer; }
+  .btn-confirm:disabled { opacity:0.6; cursor:not-allowed; }
+  .success-box { text-align:center; max-width:320px; width:90%; }
+  .success-icon { font-size:3rem; margin-bottom:1rem; }
+  .success-box h2 { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:0.05em; color:var(--brown-dark); margin-bottom:0.5rem; }
+  .success-box p { color:var(--text-mid); font-size:0.9rem; margin-bottom:1.5rem; }
+  .btn-new { padding:0.75rem 2rem; background:var(--brown-dark); color:white; border:none; border-radius:10px; font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:0.1em; cursor:pointer; }
+  .info-hint { font-size:0.75rem; color:var(--text-mid); opacity:0.6; font-weight:400; text-transform:none; letter-spacing:0; margin-left:0.4rem; }
+
+  /* Calendar */
+  .calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin-top:0.75rem; }
+  .cal-header { text-align:center; font-size:0.65rem; font-weight:700; letter-spacing:0.05em; color:var(--text-mid); opacity:0.6; padding:0.2rem 0; }
+  .cal-day { aspect-ratio:1; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:600; }
+  .cal-day.empty { background:transparent; }
+  .cal-day.sunday { background:#f0f0f0; color:#bbb; }
+  .cal-day.future { background:#f5f5f5; color:#ccc; }
+  .cal-day.pending { background:#fff3cd; color:#8a6a2a; }
+  .cal-day.partial { background:#ffd6a0; color:#7a4a0a; cursor:pointer; }
+  .cal-day.partial:hover { background:#ffc070; }
+  .cal-day.done { background:#d6f5d6; color:#2d6a2d; cursor:pointer; }
+  .cal-day.done:hover { background:#b8edb8; }
+  .cal-day.none { background:#ffd6d6; color:#8a2d2d; }
+  .cal-day.today { outline:2px solid var(--amber); outline-offset:-2px; }
+  .cal-legend { display:flex; gap:1rem; margin-top:0.6rem; font-size:0.73rem; color:var(--text-mid); flex-wrap:wrap; }
+  .cal-legend span { display:flex; align-items:center; gap:0.3rem; }
+  .cal-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+
+  /* Trabajador status colors */
+  .opt-label.worker-done { background:#d6f5d6; border-color:#4a8c3f; color:#2d5a27; }
+  .opt-label.worker-done .dot { background:#4a8c3f; border-color:#4a8c3f; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-tag">🌿 La Carrasca</div>
+    <h1>Control de<br>Jornada</h1>
+    <p>Control de jornada · La Carrasca</p>
+  </div>
+</div>
+
+<div class="form-container">
+  <div id="loading-screen" style="text-align:center;padding:3rem 1rem;color:var(--text-mid)">
+    <div style="font-size:2rem;margin-bottom:0.75rem">🌿</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.1em">Cargando datos...</div>
+  </div>
+  <div id="app-content" style="display:none">
+  <p class="required-note"><span style="color:#c0392b">*</span> Campos obligatorios</p>
+
+  <!-- INCIDENCIAS BANNER -->
+  <div id="incidencias-banner" style="display:none"></div>
+
+  <form id="mainForm" novalidate>
+
+    <!-- FECHA -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📅</span> Fecha</div>
+      <div class="field-group" id="g-fecha">
+        <label>Fecha <span class="req">*</span></label>
+        <input type="date" id="fecha" name="fecha">
+        <div class="error-msg">Selecciona una fecha.</div>
+      </div>
+    </div>
+
+    <!-- TRABAJADORES -->
+    <div class="card">
+      <div class="card-title"><span class="icon">👤</span> Trabajadores</div>
+      <div class="field-group" id="g-trabajador">
+        <label>Selecciona uno o varios <span class="req">*</span></label>
+        <div class="options-grid compact" id="trabajador-grid"></div>
+        <div class="error-msg">Selecciona al menos un trabajador.</div>
+      </div>
+    </div>
+
+    <!-- TAREAS -->
+    <div class="card">
+      <div class="card-title"><span class="icon">⚙️</span> Tareas del día</div>
+      <div id="tareas-container"></div>
+      <button type="button" class="btn-add-tarea" onclick="addTarea()">+ Añadir tarea</button>
+    </div>
+
+    <!-- OBSERVACIONES GENERALES -->
+    <div class="card">
+      <div class="card-title"><span class="icon">💬</span> Observaciones generales</div>
+      <div class="field-group">
+        <label>Comentarios <span class="info-hint">(opcional)</span></label>
+        <textarea id="observaciones" placeholder="Incidencias, notas del día..."></textarea>
+      </div>
+    </div>
+
+    <div class="submit-area">
+      <button type="submit" class="btn-submit">Revisar y Enviar</button>
+      <button type="button" class="btn-clear" onclick="clearForm()">Limpiar formulario</button>
+    </div>
+  </form>
+
+  <!-- PARTES PENDIENTES -->
+  <div class="card" id="partes-pendientes-card" style="margin-top:1rem;display:none">
+    <div class="card-title" style="color:#e67e22">🕐 Partes pendientes de envío a Sheets</div>
+    <p style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.8rem">Puedes modificar o borrar estos partes durante los próximos 30 minutos.</p>
+    <div id="partes-pendientes-list"></div>
+  </div>
+</div>
+
+<!-- Review overlay -->
+<div class="overlay" id="reviewOverlay">
+  <div class="overlay-box">
+    <div class="overlay-title">📋 Resumen del Parte</div>
+    <div id="review-content" style="font-size:0.88rem;color:var(--text-dark);line-height:1.8"></div>
+    <div class="overlay-actions">
+      <button class="btn-back" onclick="closeReview()">✏️ Modificar</button>
+      <button class="btn-confirm" id="btn-confirm" onclick="confirmAndSend()">✅ Confirmar y Enviar</button>
+    </div>
+  </div>
+</div>
+</div><!-- end app-content -->
+
+<!-- Edit parte overlay -->
+<div class="overlay" id="editParteOverlay">
+  <div class="overlay-box">
+    <div class="overlay-title">✏️ Modificar Parte</div>
+    <div id="edit-parte-content" style="font-size:0.88rem;max-height:60vh;overflow-y:auto"></div>
+    <div class="overlay-actions">
+      <button class="btn-back" onclick="document.getElementById('editParteOverlay').classList.remove('show')">Cancelar</button>
+      <button class="btn-confirm" id="btn-save-edit" onclick="saveEditParte()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Worker detail overlay -->
+<div class="overlay" id="workerDetailOverlay">
+  <div class="overlay-box">
+    <div class="overlay-title" id="worker-detail-title">👤 Trabajador</div>
+    <div id="worker-detail-content" style="font-size:0.88rem;color:var(--text-dark);line-height:1.8;max-height:60vh;overflow-y:auto"></div>
+    <div class="overlay-actions">
+      <button class="btn-confirm" onclick="document.getElementById('workerDetailOverlay').classList.remove('show')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Success overlay -->
+<div class="overlay" id="successOverlay">
+  <div class="overlay-box success-box">
+    <div class="success-icon">✅</div>
+    <h2>Parte Enviado</h2>
+    <p id="success-msg">El parte ha sido registrado correctamente.</p>
+    <button class="btn-new" onclick="newForm()">Nuevo Parte</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://jecqfntpvzwipjcleqbl.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplY3FmbnRwdnp3aXBqY2xlcWJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzE2NjIsImV4cCI6MjA5MDQ0NzY2Mn0.J26k1VElLscwOxhGTBXpyw-OnXZ-BZOiBW5vCG3CreI';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwclXgkQKbH5ROyzFNS-_nevUKCXyFsIyYi7PyfhwUXyc6bwDbcRfAyHkPLS9qJ8lU2BA/exec';
+
+const trabajadores = []; // Se cargan desde Supabase
+const tiposTrabajo = []; // Se cargan desde Supabase
+const fincas = []; // Se cargan desde Supabase
+const fincaData = {}; // Se carga desde Supabase
+
+const state = { trabajadores: [] };  // Multiple workers
+let tareaCount = 0;
+
+async function loadTrabajadores() {
+  const fecha = document.getElementById('fecha').value || today;
+
+  const cached = localStorage.getItem('cache_trabajadores_carrasca');
+  if (cached) {
+    trabajadores.length = 0;
+    JSON.parse(cached).forEach(t => trabajadores.push(typeof t === 'string' ? { nombre: t, alias: t, nombre_completo: t } : t));
+  }
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/trabajadores?fecha_alta=lte.${fecha}&or=(fecha_baja.is.null,fecha_baja.gte.${fecha})&fincas=cs.{"La Carrasca"}&order=orden.asc,nombre.asc&select=nombre,alias,nombre_completo`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const trabajadoresData = data.map(t => ({ nombre: t.nombre, alias: t.alias || t.nombre, nombre_completo: t.nombre_completo || t.nombre }));
+      localStorage.setItem('cache_trabajadores_carrasca', JSON.stringify(trabajadoresData));
+      trabajadores.length = 0;
+      trabajadoresData.forEach(t => trabajadores.push(t));
+    }
+  } catch(e) { console.warn('Error cargando trabajadores:', e); }
+
+  // Fetch partes del día
+  let horasPorTrabajador = {};
+  let ausenciasPorTrabajador = {};
+  let detallePorTrabajador = {};
+  let trabajadoresConParte = new Set();
+  try {
+    const res2 = await fetch(
+      `${SUPABASE_URL}/rest/v1/partes_trabajo_carrasca?fecha=eq.${fecha}&select=trabajador,horas,tipo_trabajo,finca,cultivo,parcelas`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (res2.ok) {
+      const data2 = await res2.json();
+      data2.forEach(r => {
+        const nom = r.trabajador;
+        trabajadoresConParte.add(nom);
+        if (!detallePorTrabajador[nom]) detallePorTrabajador[nom] = [];
+        if (r.tipo_trabajo === 'Ausente' || r.tipo_trabajo === 'No llamado') {
+          ausenciasPorTrabajador[nom] = r.tipo_trabajo;
+        } else {
+          if (!horasPorTrabajador[nom]) horasPorTrabajador[nom] = 0;
+          horasPorTrabajador[nom] += parseFloat(r.horas) || 0;
+          detallePorTrabajador[nom].push(r);
+        }
+      });
+    }
+  } catch(e) { console.warn('Error cargando partes:', e); }
+
+  buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador, ausenciasPorTrabajador, detallePorTrabajador);
+}
+
+function buildTrabajadorGrid(trabajadoresConParte, horasPorTrabajador, ausenciasPorTrabajador, detallePorTrabajador) {
+  const grid = document.getElementById('trabajador-grid');
+  grid.innerHTML = '';
+
+  trabajadores.forEach(t => {
+    const nombre = typeof t === 'string' ? t : t.nombre;
+    const alias = typeof t === 'string' ? t : (t.alias || t.nombre);
+    const tieneParte = trabajadoresConParte.has(nombre);
+    const horas = (horasPorTrabajador && horasPorTrabajador[nombre]) || 0;
+    const ausencia = ausenciasPorTrabajador && ausenciasPorTrabajador[nombre];
+    const detalle = (detallePorTrabajador && detallePorTrabajador[nombre]) || [];
+
+    // Wrapper div
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;align-items:center;gap:0.3rem';
+
+    // Checkbox label
+    const lbl = document.createElement('label');
+    lbl.className = 'opt-label' + (tieneParte ? ' worker-done' : '');
+    lbl.style.cssText = 'flex:1;flex-direction:column;align-items:flex-start;padding:0.5rem 0.7rem';
+
+    let horasText = '';
+    let horasColor = '#2d6a2d';
+    if (ausencia) {
+      horasText = ausencia === 'Ausente' ? 'Ausente' : 'No llamado';
+      horasColor = '#e67e22';
+    } else if (tieneParte) {
+      horasText = horas + 'h';
+      horasColor = horas > 0 ? '#2d6a2d' : '#e67e22';
+    }
+
+    lbl.innerHTML = `<span style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox"><span class="dot"></span>${alias}</span>${horasText ? `<span style="font-size:0.72rem;font-weight:700;color:${horasColor};margin-top:0.15rem;padding-left:1.4rem">${horasText}</span>` : ''}`;
+
+    const cb = lbl.querySelector('input');
+    cb.addEventListener('change', () => {
+      lbl.classList.toggle('checked', cb.checked);
+      if (cb.checked) {
+        if (!state.trabajadores.includes(nombre)) state.trabajadores.push(nombre);
+      } else {
+        state.trabajadores = state.trabajadores.filter(t => t !== nombre);
+      }
+      document.getElementById('g-trabajador')?.classList.remove('field-error');
+    });
+    wrapper.appendChild(lbl);
+
+    // Info button (separate from label)
+    if (tieneParte && (detalle.length > 0 || ausencia)) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'ℹ️';
+      btn.title = 'Ver detalle';
+      btn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:1rem;padding:0.2rem;flex-shrink:0';
+      btn.addEventListener('click', () => showWorkerDetail(nombre, detalle, ausencia, horas));
+      wrapper.appendChild(btn);
+    }
+
+    grid.appendChild(wrapper);
+  });
+}
+
+function showWorkerDetail(nombre, detalle, ausencia, totalHoras) {
+  const overlay = document.getElementById('workerDetailOverlay');
+  document.getElementById('worker-detail-title').textContent = `👤 ${nombre}`;
+  let html = '';
+  if (ausencia) {
+    html = `<div style="background:#fff3cd;border-radius:8px;padding:0.8rem;text-align:center;font-weight:600;color:#e67e22">${ausencia}</div>`;
+  } else {
+    html = detalle.map(r => `
+      <div style="background:var(--cream);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:0.4rem">
+        <div style="font-weight:600">${r.tipo_trabajo} · <span style="color:#2d6a2d">${r.horas}h</span></div>
+        <div style="font-size:0.82rem;color:var(--text-mid)">${r.finca || ''}${r.cultivo ? ' · ' + r.cultivo : ''}${r.parcelas ? ' · ' + r.parcelas : ''}</div>
+      </div>`).join('');
+    html += `<div style="text-align:right;font-weight:700;color:#2d6a2d;margin-top:0.5rem">Total: ${totalHoras}h</div>`;
+  }
+  document.getElementById('worker-detail-content').innerHTML = html;
+  overlay.classList.add('show');
+}
+
+function buildRadioGrid(containerId, items, stateKey) {
+  const grid = document.getElementById(containerId);
+  grid.innerHTML = '';
+  items.forEach(item => {
+    const lbl = document.createElement('label');
+    lbl.className = 'opt-label';
+    lbl.innerHTML = `<input type="radio" name="${stateKey}" value="${item}"><span class="dot"></span>${item}`;
+    lbl.addEventListener('click', () => {
+      grid.querySelectorAll('.opt-label').forEach(l => l.classList.remove('checked'));
+      lbl.classList.add('checked');
+      document.getElementById('g-' + stateKey)?.classList.remove('field-error');
+    });
+    grid.appendChild(lbl);
+  });
+}
+
+function addTarea() {
+  tareaCount++;
+  const n = tareaCount;
+  const container = document.getElementById('tareas-container');
+  const div = document.createElement('div');
+  div.className = 'tarea-row';
+  div.id = `tarea-row-${n}`;
+  div.dataset.finca = '';
+  div.dataset.cultivos = '[]';
+  div.dataset.parcelas = '[]';
+
+  div.innerHTML = `
+    <div class="tarea-header">
+      <div class="tarea-num">TAREA ${String(n).padStart(2,'0')}</div>
+      ${n > 1 ? `<button type="button" class="btn-remove-tarea" onclick="removeTarea(${n})">✕</button>` : ''}
+    </div>
+
+    <div class="tarea-section">Tipo de trabajo *</div>
+    <div class="field-group" id="g-tipo-${n}">
+      <div class="tipo-grid" id="tipo-grid-${n}">
+        ${tiposTrabajo.filter(t => t !== 'Ausente' && t !== 'No llamado' && t !== 'CASA').map(t =>
+          `<label class="opt-label tipo-opt" data-id="${n}" data-val="${t}"><input type="radio" name="tipo-${n}" value="${t}">${t}</label>`
+        ).join('')}
+        <label class="opt-label tipo-opt" data-id="${n}" data-val="__otro__"><input type="radio" name="tipo-${n}" value="__otro__">✏️ Otro</label>
+        ${tiposTrabajo.filter(t => t === 'CASA').map(t =>
+          `<label class="opt-label tipo-opt" data-id="${n}" data-val="${t}" style="border-color:#8e44ad;color:#6c3483;"><input type="radio" name="tipo-${n}" value="${t}">🏠 ${t}</label>`
+        ).join('')}
+        ${tiposTrabajo.filter(t => t === 'Ausente' || t === 'No llamado').map(t =>
+          `<label class="opt-label tipo-opt" data-id="${n}" data-val="${t}" style="border-color:#e74c3c;color:#c0392b;"><input type="radio" name="tipo-${n}" value="${t}">${t}</label>`
+        ).join('')}
+      </div>
+      <input type="text" id="tipo-otro-${n}" placeholder="Describe el trabajo..." style="display:none;margin-top:0.5rem">
+      <div class="error-msg">Selecciona un tipo de trabajo.</div>
+    </div>
+
+    <div class="tarea-section">Finca *</div>
+    <div class="field-group" id="g-finca-${n}">
+      <div class="finca-selector" id="finca-sel-${n}">
+        ${fincas.map(f => `<label class="opt-label" data-finca="${f}" data-tarea="${n}"><input type="radio" name="finca-${n}" value="${f}"><span class="dot"></span>${f}</label>`).join('')}
+      </div>
+      <div class="error-msg">Selecciona una finca.</div>
+    </div>
+
+    <div class="tarea-section">Cultivo *</div>
+    <div class="field-group" id="g-cultivo-${n}">
+      <div class="cultivo-selector" id="cultivo-sel-${n}">
+        <div class="selector-hint">Selecciona primero una finca</div>
+      </div>
+      <div class="error-msg">Selecciona un cultivo.</div>
+    </div>
+
+    <div class="tarea-section">Parcela *</div>
+    <div class="field-group" id="g-parcela-${n}">
+      <div class="parcela-selector" id="parcela-sel-${n}">
+        <div class="selector-hint">Selecciona primero un cultivo</div>
+      </div>
+      <div class="error-msg">Selecciona una parcela.</div>
+    </div>
+
+    <div class="horas-row">
+      <div class="field-group" id="g-horas-${n}">
+        <label>Horas <span class="req">*</span></label>
+        <input type="number" id="horas-${n}" placeholder="0.0" min="0" max="24" step="0.5">
+        <div class="error-msg">Indica las horas.</div>
+      </div>
+      <div class="field-group">
+        <label>Observaciones</label>
+        <input type="text" id="obs-${n}" placeholder="Notas...">
+      </div>
+    </div>`;
+
+  container.appendChild(div);
+
+  // Tipo handlers
+  div.querySelectorAll('.tipo-opt').forEach(lbl => {
+    lbl.addEventListener('click', () => {
+      const id = lbl.dataset.id;
+      div.querySelectorAll('.tipo-opt').forEach(l => l.classList.remove('checked'));
+      lbl.classList.add('checked');
+      document.getElementById(`g-tipo-${id}`)?.classList.remove('field-error');
+      const otroInput = document.getElementById(`tipo-otro-${id}`);
+      const val = lbl.dataset.val;
+      otroInput.style.display = val === '__otro__' ? 'block' : 'none';
+      if (val !== '__otro__') otroInput.value = '';
+
+      // Hide finca/cultivo/parcela/horas for Ausente, No llamado and CASA
+      const esAusencia = val === 'Ausente' || val === 'No llamado';
+      const esCasa = val === 'CASA';
+      ['g-finca', 'g-cultivo', 'g-parcela', 'g-horas'].forEach(g => {
+        const el = document.getElementById(`${g}-${id}`);
+        if (el) el.style.display = (esAusencia || esCasa) ? 'none' : '';
+      });
+      if (esAusencia) {
+        div.dataset.finca = 'N/A';
+        div.dataset.cultivos = '["N/A"]';
+        div.dataset.parcelas = '["N/A"]';
+        const horasInput = document.getElementById(`horas-${id}`);
+        if (horasInput) horasInput.value = '0';
+      } else if (esCasa) {
+        div.dataset.finca = 'CASA';
+        div.dataset.cultivos = '["CASA"]';
+        div.dataset.parcelas = '["CASA"]';
+        const horasInput = document.getElementById(`horas-${id}`);
+        if (horasInput) horasInput.value = '0';
+      } else {
+        div.dataset.finca = '';
+        div.dataset.cultivos = '[]';
+        div.dataset.parcelas = '[]';
+      }
+    });
+  });
+
+  // Finca handlers
+  div.querySelectorAll(`[data-finca][data-tarea="${n}"]`).forEach(lbl => {
+    lbl.addEventListener('click', () => {
+      const finca = lbl.dataset.finca;
+      div.querySelectorAll(`[data-finca]`).forEach(l => l.classList.remove('checked'));
+      lbl.classList.add('checked');
+      div.dataset.finca = finca;
+      div.dataset.cultivos = '[]';
+      div.dataset.parcelas = '[]';
+      document.getElementById(`g-finca-${n}`)?.classList.remove('field-error');
+      buildCultivoSelector(n, finca);
+    });
+  });
+}
+
+function buildCultivoSelector(n, finca) {
+  const container = document.getElementById(`cultivo-sel-${n}`);
+  container.innerHTML = '';
+  const cultivos = Object.keys(fincaData[finca] || {});
+  cultivos.forEach(c => {
+    const lbl = document.createElement('label');
+    lbl.className = 'opt-label';
+    lbl.innerHTML = `<input type="checkbox"><span class="dot"></span>${c}`;
+    const cb = lbl.querySelector('input');
+    cb.addEventListener('change', () => {
+      lbl.classList.toggle('checked', cb.checked);
+      const row = document.getElementById(`tarea-row-${n}`);
+      let cultivos = JSON.parse(row.dataset.cultivos);
+      if (cb.checked) { if (!cultivos.includes(c)) cultivos.push(c); }
+      else { cultivos = cultivos.filter(x => x !== c); }
+      row.dataset.cultivos = JSON.stringify(cultivos);
+      row.dataset.parcelas = '[]';
+      document.getElementById(`g-cultivo-${n}`)?.classList.remove('field-error');
+      buildParcelaSelector(n, row.dataset.finca, cultivos);
+    });
+    container.appendChild(lbl);
+  });
+  document.getElementById(`parcela-sel-${n}`).innerHTML = '<div class="selector-hint">Selecciona primero un cultivo</div>';
+}
+
+function buildParcelaSelector(n, finca, cultivos) {
+  const container = document.getElementById(`parcela-sel-${n}`);
+  container.innerHTML = '';
+  if (!cultivos.length) {
+    container.innerHTML = '<div class="selector-hint">Selecciona primero un cultivo</div>';
+    return;
+  }
+  // Group by cultivo if multiple
+  if (cultivos.length > 1) {
+    cultivos.forEach(c => {
+      const parcelas = fincaData[finca]?.[c] || [];
+      if (!parcelas.length) return;
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'grid-column:1/-1;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--brown-mid);margin-top:0.4rem;padding-bottom:0.2rem;border-bottom:1px solid var(--border)';
+      hdr.textContent = c;
+      container.appendChild(hdr);
+      parcelas.forEach(p => addParcelaOpt(container, n, p));
+    });
+  } else {
+    (fincaData[finca]?.[cultivos[0]] || []).forEach(p => addParcelaOpt(container, n, p));
+  }
+}
+
+function addParcelaOpt(container, n, parcela) {
+  const lbl = document.createElement('label');
+  lbl.className = 'opt-label';
+  lbl.innerHTML = `<input type="checkbox"><span class="dot"></span>${parcela}`;
+  const cb = lbl.querySelector('input');
+  cb.addEventListener('change', () => {
+    lbl.classList.toggle('checked', cb.checked);
+    const row = document.getElementById(`tarea-row-${n}`);
+    let parcelas = JSON.parse(row.dataset.parcelas);
+    if (cb.checked) { if (!parcelas.includes(parcela)) parcelas.push(parcela); }
+    else { parcelas = parcelas.filter(x => x !== parcela); }
+    row.dataset.parcelas = JSON.stringify(parcelas);
+    document.getElementById(`g-parcela-${n}`)?.classList.remove('field-error');
+  });
+  container.appendChild(lbl);
+}
+
+function removeTarea(n) {
+  document.getElementById(`tarea-row-${n}`)?.remove();
+}
+
+function validateForm() {
+  let valid = true;
+
+  // Trabajador
+  const gT = document.getElementById('g-trabajador');
+  if (state.trabajadores.length === 0) { gT?.classList.add('field-error'); valid = false; }
+  else { gT?.classList.remove('field-error'); }
+
+  // Fecha
+  const gF = document.getElementById('g-fecha');
+  if (!document.getElementById('fecha').value) { gF.classList.add('field-error'); valid = false; }
+  else { gF.classList.remove('field-error'); }
+
+  // Tareas
+  const rows = document.querySelectorAll('.tarea-row');
+  if (rows.length === 0) { alert('Añade al menos una tarea.'); return false; }
+
+  rows.forEach(row => {
+    const id = row.id.replace('tarea-row-', '');
+    const tipoChecked = row.querySelector('.tipo-opt.checked');
+    const gTipo = document.getElementById(`g-tipo-${id}`);
+    if (!tipoChecked) { gTipo.classList.add('field-error'); valid = false; }
+    else {
+      if (tipoChecked.dataset.val === '__otro__') {
+        if (!document.getElementById(`tipo-otro-${id}`)?.value?.trim()) { gTipo.classList.add('field-error'); valid = false; }
+        else { gTipo.classList.remove('field-error'); }
+      } else { gTipo.classList.remove('field-error'); }
+    }
+
+    const tipoVal = tipoChecked ? tipoChecked.dataset.val : '';
+    const esAusencia = tipoVal === 'Ausente' || tipoVal === 'No llamado';
+    const esCasa = tipoVal === 'CASA';
+
+    if (!esAusencia && !esCasa) {
+      if (!row.dataset.finca) { document.getElementById(`g-finca-${id}`)?.classList.add('field-error'); valid = false; }
+      else { document.getElementById(`g-finca-${id}`)?.classList.remove('field-error'); }
+
+      if (JSON.parse(row.dataset.cultivos || '[]').length === 0) { document.getElementById(`g-cultivo-${id}`)?.classList.add('field-error'); valid = false; }
+      else { document.getElementById(`g-cultivo-${id}`)?.classList.remove('field-error'); }
+
+      if (JSON.parse(row.dataset.parcelas || '[]').length === 0) { document.getElementById(`g-parcela-${id}`)?.classList.add('field-error'); valid = false; }
+      else { document.getElementById(`g-parcela-${id}`)?.classList.remove('field-error'); }
+
+      const horasInput = document.getElementById(`horas-${id}`);
+      const gHoras = document.getElementById(`g-horas-${id}`);
+      if (!horasInput?.value || parseFloat(horasInput.value) <= 0) { gHoras.classList.add('field-error'); valid = false; }
+      else { gHoras.classList.remove('field-error'); }
+    } else {
+      ['g-finca', 'g-cultivo', 'g-parcela', 'g-horas'].forEach(g => {
+        document.getElementById(`${g}-${id}`)?.classList.remove('field-error');
+      });
+    }
+  });
+
+  return valid;
+}
+
+function buildParteData() {
+  const tareas = [];
+  document.querySelectorAll('.tarea-row').forEach(row => {
+    const id = row.id.replace('tarea-row-', '');
+    const tipoChecked = row.querySelector('.tipo-opt.checked');
+    const tipoVal = tipoChecked ? tipoChecked.dataset.val : '';
+    const tipoFinal = tipoVal === '__otro__' ? (document.getElementById(`tipo-otro-${id}`)?.value?.trim() || 'Otro') : tipoVal;
+    tareas.push({
+      tipo: tipoFinal,
+      finca: row.dataset.finca || '',
+      cultivo: JSON.parse(row.dataset.cultivos || '[]').join(', '),
+      parcelas: JSON.parse(row.dataset.parcelas || '[]').join(', '),
+      horas: parseFloat(document.getElementById(`horas-${id}`)?.value) || 0,
+      observaciones: document.getElementById(`obs-${id}`)?.value?.trim() || ''
+    });
+  });
+
+  // Get nombre_completo for each selected worker
+  const trabajadoresCompletos = state.trabajadores.map(nom => {
+    const t = trabajadores.find(w => (typeof w === 'string' ? w : w.nombre) === nom);
+    return typeof t === 'object' ? t : { nombre: nom, alias: nom, nombre_completo: nom };
+  });
+
+  return {
+    trabajadores: state.trabajadores,
+    trabajadoresCompletos,
+    trabajador: state.trabajadores.join(', '),
+    fecha: document.getElementById('fecha').value,
+    tareas,
+    observaciones_generales: document.getElementById('observaciones').value.trim() || null,
+    total_horas: tareas.reduce((s, t) => s + t.horas, 0)
+  };
+}
+
+function showReview(parte) {
+  let html = `<div style="display:grid;gap:0.4rem">
+    <div style="background:var(--cream);border-radius:8px;padding:0.6rem 0.8rem">
+      <div>👤 <strong>Trabajador/es:</strong> ${parte.trabajadores.join(', ')}</div>
+      <div>📅 <strong>Fecha:</strong> ${parte.fecha}</div>
+    </div>
+    <div style="background:var(--cream);border-radius:8px;padding:0.6rem 0.8rem">
+      <div style="font-weight:700;margin-bottom:0.3rem">⚙️ Tareas:</div>`;
+
+  parte.tareas.forEach((t, i) => {
+    html += `<div style="padding:0.3rem 0;border-bottom:1px dashed var(--border)">
+      <strong>${String(i+1).padStart(2,'0')}.</strong> ${t.tipo} · <strong>${t.horas}h</strong><br>
+      <span style="font-size:0.82rem;opacity:0.7">🌾 ${t.finca} · ${t.cultivo} · ${t.parcelas}</span>
+      ${t.observaciones ? `<br><span style="font-size:0.82rem;opacity:0.6">— ${t.observaciones}</span>` : ''}
+    </div>`;
+  });
+
+  html += `<div style="margin-top:0.4rem;font-size:0.82rem;color:var(--amber);font-weight:600">Total: ${parte.total_horas}h</div>
+    </div>`;
+  if (parte.observaciones_generales) {
+    html += `<div style="background:var(--cream);border-radius:8px;padding:0.6rem 0.8rem">💬 <strong>Obs. generales:</strong> ${parte.observaciones_generales}</div>`;
+  }
+  html += `</div>`;
+  document.getElementById('review-content').innerHTML = html;
+  document.getElementById('reviewOverlay').classList.add('show');
+}
+
+function closeReview() { document.getElementById('reviewOverlay').classList.remove('show'); }
+
+async function saveToSupabase(parte) {
+  try {
+    const promises = [];
+    parte.trabajadoresCompletos.forEach(t => {
+      parte.tareas.forEach(tarea => {
+        promises.push(fetch(`${SUPABASE_URL}/rest/v1/partes_trabajo_carrasca`, {
+          method: 'POST',
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            trabajador: t.nombre,
+            trabajador_alias: t.alias,
+            trabajador_completo: t.nombre_completo,
+            fecha: parte.fecha,
+            finca: tarea.finca, cultivo: tarea.cultivo, parcelas: tarea.parcelas,
+            tipo_trabajo: tarea.tipo, horas: tarea.horas,
+            observaciones_tarea: tarea.observaciones || null,
+            observaciones_generales: parte.observaciones_generales,
+            total_horas_parte: parte.total_horas,
+            enviado_sheets: false
+          })
+        }));
+      });
+    });
+    const results = await Promise.all(promises);
+    return results.every(r => r.ok);
+  } catch(e) { console.error('Supabase error:', e); return false; }
+}
+
+async function saveToSheets(parte) {
+  if (!SHEETS_URL) return true;
+  try {
+    const formData = new FormData();
+    formData.append('payload', JSON.stringify(parte));
+    await fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', body: formData });
+    return true;
+  } catch(e) { return false; }
+}
+
+async function confirmAndSend() {
+  const parte = window._parteData;
+  if (!parte) return;
+  const btn = document.getElementById('btn-confirm');
+  btn.textContent = 'Enviando...';
+  btn.disabled = true;
+
+  const savedDB = await saveToSupabase(parte);
+
+  btn.textContent = '✅ Confirmar y Enviar';
+  btn.disabled = false;
+  document.getElementById('reviewOverlay').classList.remove('show');
+  document.getElementById('success-msg').textContent = savedDB
+    ? '✅ Parte registrado. Tienes 30 minutos para modificarlo si es necesario.'
+    : '⚠️ Hubo un problema al guardar. Contacta con la oficina.';
+  document.getElementById('successOverlay').classList.add('show');
+  window._parteData = null;
+  loadTrabajadores();
+  loadPartesPendientes();
+}
+
+document.getElementById('mainForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  if (!validateForm()) {
+    const firstError = document.querySelector('.field-error');
+    if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  window._parteData = buildParteData();
+  showReview(window._parteData);
+});
+
+function clearForm() {
+  if (!confirm('¿Seguro que quieres limpiar el formulario?')) return;
+  document.getElementById('mainForm').reset();
+  state.trabajadores = [];
+  document.querySelectorAll('.opt-label').forEach(l => l.classList.remove('checked'));
+  document.querySelectorAll('.field-error').forEach(e => e.classList.remove('field-error'));
+  document.getElementById('fecha').value = today;
+  document.getElementById('tareas-container').innerHTML = '';
+  tareaCount = 0;
+  addTarea();
+}
+
+function newForm() {
+  document.getElementById('successOverlay').classList.remove('show');
+  document.getElementById('reviewOverlay').classList.remove('show');
+  window._parteData = null;
+  loadTrabajadores();
+  clearForm();
+}
+
+// INIT
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('fecha').value = today;
+
+// Update worker colors when date changes
+document.getElementById('fecha').addEventListener('change', () => {
+  state.trabajadores = [];
+  loadTrabajadores();
+  checkIncidencias();
+  loadPartesPendientes();
+});
+
+async function loadTareasDavid() {
+  try {
+    // Use cache if available
+    const cached = localStorage.getItem('cache_tareas_trabajo_carrasca');
+    if (cached) {
+      const data = JSON.parse(cached);
+      tiposTrabajo.length = 0;
+      data.forEach(t => tiposTrabajo.push(t.nombre));
+    }
+    // Always fetch fresh in background
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/tareas_trabajo?activa=eq.true&order=nombre.asc&select=nombre`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem('cache_tareas_trabajo_carrasca', JSON.stringify(data));
+      tiposTrabajo.length = 0;
+      data.forEach(t => tiposTrabajo.push(t.nombre));
+    }
+  } catch(e) { console.warn('Error cargando tareas:', e); }
+}
+
+async function loadFincasFromDB() {
+  try {
+    // Use cache if available — show immediately
+    const cachedFincas = localStorage.getItem('cache_fincas_data_carrasca');
+    if (cachedFincas) {
+      const { dbFincas, dbCultivos, dbParcelas } = JSON.parse(cachedFincas);
+      buildFincaData(dbFincas, dbCultivos, dbParcelas);
+    }
+    // Fetch fresh in background
+    const [rf, rc, rp] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/fincas?activa=eq.true&order=nombre.asc&select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }),
+      fetch(`${SUPABASE_URL}/rest/v1/cultivos?activo=eq.true&order=nombre.asc&select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }),
+      fetch(`${SUPABASE_URL}/rest/v1/parcelas?activa=eq.true&order=nombre.asc&select=*`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } })
+    ]);
+    const dbFincas = await rf.json();
+    const dbCultivos = await rc.json();
+    const dbParcelas = await rp.json();
+    localStorage.setItem('cache_fincas_data_carrasca', JSON.stringify({ dbFincas, dbCultivos, dbParcelas }));
+    buildFincaData(dbFincas, dbCultivos, dbParcelas);
+  } catch(e) { console.warn('Error cargando fincas:', e); }
+}
+
+function buildFincaData(dbFincas, dbCultivos, dbParcelas) {
+  fincas.length = 0;
+  dbFincas.forEach(f => {
+    fincas.push(f.nombre);
+    fincaData[f.nombre] = {};
+  });
+  dbCultivos.forEach(c => {
+    const finca = dbFincas.find(f => f.id === c.finca_id);
+    if (finca) {
+      fincaData[finca.nombre][c.nombre] = dbParcelas.filter(p => p.cultivo_id === c.id).map(p => p.nombre);
+    }
+  });
+}
+
+let partesPendientes = [];
+let parteEditando = null;
+
+async function loadPartesPendientes() {
+  try {
+    const fecha = document.getElementById('fecha').value || today;
+    const ahora = new Date();
+    const hace30 = new Date(ahora.getTime() - 30 * 60 * 1000).toISOString();
+
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/partes_trabajo_carrasca?enviado_sheets=eq.false&fecha=eq.${fecha}&created_at=gte.${hace30}&order=created_at.desc&select=*`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!res.ok) return;
+    partesPendientes = await res.json();
+
+    const card = document.getElementById('partes-pendientes-card');
+    const list = document.getElementById('partes-pendientes-list');
+
+    if (partesPendientes.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+
+    card.style.display = 'block';
+    list.innerHTML = partesPendientes.map(p => {
+      const created = new Date(p.created_at);
+      const expira = new Date(created.getTime() + 30 * 60 * 1000);
+      const minRestantes = Math.max(0, Math.round((expira - ahora) / 60000));
+      const alias = trabajadores.find(t => (typeof t === 'object' ? t.nombre : t) === p.trabajador);
+      const nombreMostrar = typeof alias === 'object' ? (alias.alias || alias.nombre) : p.trabajador;
+      return `
+        <div style="background:var(--cream);border-radius:8px;padding:0.7rem;margin-bottom:0.5rem;border-left:3px solid #e67e22">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem">
+            <div style="font-weight:700">${nombreMostrar}</div>
+            <div style="font-size:0.72rem;color:#e67e22">⏳ ${minRestantes} min</div>
+          </div>
+          <div style="font-size:0.82rem;color:var(--text-mid)">${p.tipo_trabajo} · ${p.horas}h · ${p.finca || ''}${p.parcelas ? ' · ' + p.parcelas : ''}</div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+            <button class="btn-sm" style="background:#2980b9;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.7rem;cursor:pointer;font-size:0.78rem" onclick="editParte('${p.id}')">✏️ Modificar</button>
+            <button class="btn-sm btn-danger" onclick="deleteParte('${p.id}')">🗑️ Borrar</button>
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) { console.warn('Error cargando pendientes:', e); }
+}
+
+async function deleteParte(id) {
+  if (!confirm('¿Borrar este parte?')) return;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/partes_trabajo_carrasca?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (res.ok) {
+    partesPendientes = partesPendientes.filter(p => p.id !== id);
+    await loadPartesPendientes();
+    await loadTrabajadores();
+  } else {
+    alert('Error al borrar el parte.');
+  }
+}
+
+function editParte(id) {
+  parteEditando = partesPendientes.find(p => p.id === id);
+  if (!parteEditando) return;
+
+  const alias = trabajadores.find(t => (typeof t === 'object' ? t.nombre : t) === parteEditando.trabajador);
+  const nombreMostrar = typeof alias === 'object' ? (alias.alias || alias.nombre) : parteEditando.trabajador;
+
+  const fincaOpts = fincas.map(f => `<option value="${f}" ${f === parteEditando.finca ? 'selected' : ''}>${f}</option>`).join('');
+  const cultivosActuales = parteEditando.finca ? Object.keys(fincaData[parteEditando.finca] || {}) : [];
+  const cultivoOpts = cultivosActuales.map(c => `<option value="${c}" ${c === parteEditando.cultivo ? 'selected' : ''}>${c}</option>`).join('');
+  const parcelasActuales = (parteEditando.finca && parteEditando.cultivo) ? (fincaData[parteEditando.finca]?.[parteEditando.cultivo] || []) : [];
+  const parcelaOpts = parcelasActuales.map(p => `<option value="${p}" ${p === parteEditando.parcelas ? 'selected' : ''}>${p}</option>`).join('');
+
+  document.getElementById('edit-parte-content').innerHTML = `
+    <div style="display:grid;gap:0.7rem;padding:0.5rem 0">
+      <div><strong>Trabajador:</strong> ${nombreMostrar}</div>
+      <div class="field-group">
+        <label>Tipo de trabajo</label>
+        <select id="edit-tipo" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+          ${tiposTrabajo.map(t => `<option value="${t}" ${t === parteEditando.tipo_trabajo ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Finca</label>
+        <select id="edit-finca" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px" onchange="updateEditCultivos()">
+          <option value="">Selecciona...</option>${fincaOpts}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Cultivo</label>
+        <select id="edit-cultivo" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px" onchange="updateEditParcelas()">
+          <option value="">Selecciona...</option>${cultivoOpts}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Parcela</label>
+        <select id="edit-parcela" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+          <option value="">Selecciona...</option>${parcelaOpts}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Horas</label>
+        <input type="number" id="edit-horas" value="${parteEditando.horas}" min="0" max="24" step="0.5" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+      </div>
+      <div class="field-group">
+        <label>Observaciones</label>
+        <input type="text" id="edit-obs" value="${parteEditando.observaciones_tarea || ''}" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px">
+      </div>
+    </div>`;
+  document.getElementById('editParteOverlay').classList.add('show');
+}
+
+function updateEditCultivos() {
+  const finca = document.getElementById('edit-finca').value;
+  const cultivos = finca ? Object.keys(fincaData[finca] || {}) : [];
+  document.getElementById('edit-cultivo').innerHTML = '<option value="">Selecciona...</option>' +
+    cultivos.map(c => `<option value="${c}">${c}</option>`).join('');
+  document.getElementById('edit-parcela').innerHTML = '<option value="">Selecciona...</option>';
+}
+
+function updateEditParcelas() {
+  const finca = document.getElementById('edit-finca').value;
+  const cultivo = document.getElementById('edit-cultivo').value;
+  const parcelas = (finca && cultivo) ? (fincaData[finca]?.[cultivo] || []) : [];
+  document.getElementById('edit-parcela').innerHTML = '<option value="">Selecciona...</option>' +
+    parcelas.map(p => `<option value="${p}">${p}</option>`).join('');
+}
+
+async function saveEditParte() {
+  if (!parteEditando) return;
+  const tipo = document.getElementById('edit-tipo').value;
+  const finca = document.getElementById('edit-finca').value;
+  const cultivo = document.getElementById('edit-cultivo').value;
+  const parcela = document.getElementById('edit-parcela').value;
+  const horas = parseFloat(document.getElementById('edit-horas').value) || 0;
+  const obs = document.getElementById('edit-obs').value.trim();
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/partes_trabajo_carrasca?id=eq.${parteEditando.id}`, {
+    method: 'PATCH',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ tipo_trabajo: tipo, finca, cultivo, parcelas: parcela, horas, observaciones_tarea: obs || null })
+  });
+
+  if (res.ok) {
+    document.getElementById('editParteOverlay').classList.remove('show');
+    parteEditando = null;
+    await loadPartesPendientes();
+    await loadTrabajadores();
+  }
+}
+
+async function checkIncidencias() {
+  try {
+    const fecha = document.getElementById('fecha').value || today;
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/incidencias?fecha=eq.${fecha}&select=*&order=created_at.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    const banner = document.getElementById('incidencias-banner');
+    if (data.length > 0) {
+      banner.innerHTML = `<div style="background:#fff3cd;border:2px solid #f0ad4e;border-radius:10px;padding:0.8rem 1rem;margin-bottom:1rem">
+        <div style="font-weight:700;color:#8a6d3b;margin-bottom:0.4rem">⚠️ Incidencias del día:</div>
+        ${data.map(i => `<div style="font-size:0.88rem;color:#8a6d3b">• <b>${i.trabajador}</b> — llegó a las ${i.hora_real}${i.observaciones ? ' · ' + i.observaciones : ''}</div>`).join('')}
+      </div>`;
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch(e) { console.warn('Error cargando incidencias:', e); }
+}
+
+async function init() {
+  const hasCacheFincas = localStorage.getItem('cache_fincas_data_carrasca');
+  const hasCacheTareas = localStorage.getItem('cache_tareas_trabajo_carrasca');
+  const hasCacheTrabajadores = localStorage.getItem('cache_trabajadores_carrasca');
+
+  if (hasCacheFincas && hasCacheTareas && hasCacheTrabajadores) {
+    loadTareasDavid();
+    loadFincasFromDB();
+    await loadTrabajadores();
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+    addTarea();
+  } else {
+    await Promise.all([loadTrabajadores(), loadTareasDavid(), loadFincasFromDB()]);
+    addTarea();
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+  }
+  checkIncidencias();
+  loadPartesPendientes();
+}
+
+init();
+</script>
+</body>
+</html>
