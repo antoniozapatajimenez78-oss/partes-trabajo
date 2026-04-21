@@ -396,8 +396,8 @@ function addTarea() {
 
       // Maintenance type logic
       const esMantenimientoGeneral = val === 'Manten. General';
-      const esMantenimientoInstalaciones = val === 'Mantenimiento instalaciones';
-      const esSoloFinca = val === 'Mantenimiento Finca' || val === 'Mantenimiento Maquinaria/vehículos';
+      const esMantenimientoInstalaciones = val === 'Mantenimiento Instalaciones';
+      const esSoloFinca = val === 'Mantenimiento Finca' || val === 'Mantenimiento Maquinaria/Vehículos';
       const gFinca = document.getElementById(`g-finca-${id}`);
       const gCultivo = document.getElementById(`g-cultivo-${id}`);
       const gParcela = document.getElementById(`g-parcela-${id}`);
@@ -447,11 +447,11 @@ function addTarea() {
       document.getElementById(`g-finca-${n}`)?.classList.remove('field-error');
       const tipoChecked = div.querySelector('.tipo-opt.checked');
       const tipoVal = tipoChecked ? tipoChecked.dataset.val : '';
-      const esSoloFinca = tipoVal === 'Mantenimiento Finca' || tipoVal === 'Mantenimiento Maquinaria/vehículos';
+      const esSoloFinca = tipoVal === 'Mantenimiento Finca' || tipoVal === 'Mantenimiento Maquinaria/Vehículos';
       if (esSoloFinca) {
         div.dataset.cultivos = '["Todo"]';
         div.dataset.parcelas = '["Todo"]';
-      } else if (tipoVal === 'Mantenimiento instalaciones') {
+      } else if (tipoVal === 'Mantenimiento Instalaciones') {
         buildCultivoSelectorConTodo(n, finca);
       } else {
         buildCultivoSelector(n, finca);
@@ -618,7 +618,7 @@ function validateForm() {
 
     const tipoVal = tipoChecked ? tipoChecked.dataset.val : '';
     const esMantenimientoGeneral = tipoVal === 'Manten. General';
-    const esSoloFinca = tipoVal === 'Mantenimiento Finca' || tipoVal === 'Mantenimiento Maquinaria/vehículos';
+    const esSoloFinca = tipoVal === 'Mantenimiento Finca' || tipoVal === 'Mantenimiento Maquinaria/Vehículos';
 
     if (esMantenimientoGeneral) {
       // No finca/cultivo/parcela needed
@@ -925,7 +925,7 @@ async function loadTareas() {
       data.forEach(t => tiposTrabajo.push(t.nombre));
     }
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/tareas_encargados?activa=eq.true&order=orden.asc,nombre.asc&select=nombre`,
+      `${SUPABASE_URL}/rest/v1/tareas_encargados?activa=eq.true&order=nombre.asc&select=nombre`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     if (res.ok) {
