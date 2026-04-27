@@ -245,7 +245,7 @@
 <script>
 const SUPABASE_URL = 'https://jecqfntpvzwipjcleqbl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplY3FmbnRwdnp3aXBqY2xlcWJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzE2NjIsImV4cCI6MjA5MDQ0NzY2Mn0.J26k1VElLscwOxhGTBXpyw-OnXZ-BZOiBW5vCG3CreI';
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyXS5XNcB8RpVNVaZqA5yUr1Wcu2zXdoJF0mSXj-53xNVkWJ0zLlu3q_prYaGv2jxug/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyH-hd_2DZWe66oPyKnTP39uEEyPb_leFghcQrDdMN5DYj-Xa65WY6inUEwmJ3wicti/exec';
 
 const trabajadores = []; // Se cargan desde Supabase
 const tiposTrabajo = []; // Se cargan desde Supabase
@@ -979,9 +979,9 @@ let parteEditando = null;
 
 async function loadPartesPendientes() {
   try {
-    const fecha = document.getElementById('fecha').value || today;
     const ahora = new Date();
     const hace30 = new Date(ahora.getTime() - 30 * 60 * 1000).toISOString();
+    const fecha = document.getElementById('fecha').value || today;
 
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/partes_trabajo?enviado_sheets=eq.false&fecha=eq.${fecha}&created_at=gte.${hace30}&order=created_at.desc&select=*`,
