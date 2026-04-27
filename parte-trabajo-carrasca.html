@@ -524,7 +524,16 @@ function addTarea() {
       div.dataset.cultivos = '[]';
       div.dataset.parcelas = '[]';
       document.getElementById(`g-finca-${n}`)?.classList.remove('field-error');
-      buildCultivoSelector(n, finca);
+      const tipoChecked = div.querySelector('.tipo-opt.checked');
+      const tipoVal = tipoChecked ? tipoChecked.dataset.val : '';
+      if (tipoVal === 'Mantenimiento instalaciones') {
+        buildCultivoSelectorConTodo(n, finca);
+      } else if (tipoVal === 'Mantenimiento finca' || tipoVal === 'Mantenimiento Maquinaria/Vehículos') {
+        div.dataset.cultivos = '["Todo"]';
+        div.dataset.parcelas = '["Todo"]';
+      } else {
+        buildCultivoSelector(n, finca);
+      }
     });
   });
 }
@@ -592,6 +601,65 @@ function addParcelaOpt(container, n, parcela) {
     document.getElementById(`g-parcela-${n}`)?.classList.remove('field-error');
   });
   container.appendChild(lbl);
+}
+
+function buildCultivoSelectorConTodo(n, finca) {
+  const container = document.getElementById(`cultivo-sel-${n}`);
+  container.innerHTML = '';
+  const cultivos = ['Todo', ...Object.keys(fincaData[finca] || {})];
+  cultivos.forEach(c => {
+    const lbl = document.createElement('label');
+    lbl.className = 'opt-label';
+    lbl.innerHTML = `<input type="checkbox"><span class="dot"></span>${c}`;
+    const cb = lbl.querySelector('input');
+    cb.addEventListener('change', () => {
+      lbl.classList.toggle('checked', cb.checked);
+      const row = document.getElementById(`tarea-row-${n}`);
+      let cvs = JSON.parse(row.dataset.cultivos);
+      if (cb.checked) {
+        if (c === 'Todo') {
+          container.querySelectorAll('input').forEach(i => { i.checked = false; i.parentElement.classList.remove('checked'); });
+          cb.checked = true; lbl.classList.add('checked');
+          cvs = ['Todo'];
+        } else {
+          cvs = cvs.filter(x => x !== 'Todo');
+          if (!cvs.includes(c)) cvs.push(c);
+        }
+      } else { cvs = cvs.filter(x => x !== c); }
+      row.dataset.cultivos = JSON.stringify(cvs);
+      row.dataset.parcelas = '[]';
+      document.getElementById(`g-cultivo-${n}`)?.classList.remove('field-error');
+      if (cvs.includes('Todo')) {
+        const pSel = document.getElementById(`parcela-sel-${n}`);
+        pSel.innerHTML = '';
+        addParcelaOpt(pSel, n, 'Todo');
+      } else {
+        buildParcelaSelectorConTodo(n, finca, cvs);
+      }
+    });
+    container.appendChild(lbl);
+  });
+  document.getElementById(`parcela-sel-${n}`).innerHTML = '<div class="selector-hint">Selecciona primero un cultivo</div>';
+}
+
+function buildParcelaSelectorConTodo(n, finca, cultivos) {
+  const container = document.getElementById(`parcela-sel-${n}`);
+  container.innerHTML = '';
+  if (!cultivos.length) { container.innerHTML = '<div class="selector-hint">Selecciona primero un cultivo</div>'; return; }
+  addParcelaOpt(container, n, 'Todo');
+  if (cultivos.length > 1) {
+    cultivos.forEach(c => {
+      const parcelas = fincaData[finca]?.[c] || [];
+      if (!parcelas.length) return;
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'grid-column:1/-1;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--brown-mid);margin-top:0.4rem;padding-bottom:0.2rem;border-bottom:1px solid var(--border)';
+      hdr.textContent = c;
+      container.appendChild(hdr);
+      parcelas.forEach(p => addParcelaOpt(container, n, p));
+    });
+  } else {
+    (fincaData[finca]?.[cultivos[0]] || []).forEach(p => addParcelaOpt(container, n, p));
+  }
 }
 
 function removeTarea(n) {
