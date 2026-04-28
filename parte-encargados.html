@@ -465,6 +465,10 @@ function buildCultivoSelector(n, finca) {
   container.innerHTML = '';
   const cultivos = Object.keys(fincaData[finca] || {});
   cultivos.forEach(c => {
+    // CÍTRICOS solo aparece cuando tarea es Abonar
+    const tipoChecked = document.getElementById(`tarea-row-${n}`)?.querySelector('.tipo-opt.checked');
+    const tipoVal = tipoChecked ? tipoChecked.dataset.val : '';
+    if (c === 'CÍTRICOS' && tipoVal !== 'Abonar') return;
     const lbl = document.createElement('label');
     lbl.className = 'opt-label';
     lbl.innerHTML = `<input type="checkbox"><span class="dot"></span>${c}`;
@@ -488,7 +492,9 @@ function buildCultivoSelector(n, finca) {
 function buildCultivoSelectorConTodo(n, finca) {
   const container = document.getElementById(`cultivo-sel-${n}`);
   container.innerHTML = '';
-  const cultivos = ['Todo', ...Object.keys(fincaData[finca] || {})];
+  const tipoChecked = document.getElementById(`tarea-row-${n}`)?.querySelector('.tipo-opt.checked');
+  const tipoVal = tipoChecked ? tipoChecked.dataset.val : '';
+  const cultivos = ['Todo', ...Object.keys(fincaData[finca] || {}).filter(c => c !== 'CÍTRICOS' || tipoVal === 'Abonar')];
   cultivos.forEach(c => {
     const lbl = document.createElement('label');
     lbl.className = 'opt-label';
