@@ -245,7 +245,7 @@
 <script>
 const SUPABASE_URL = 'https://jecqfntpvzwipjcleqbl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplY3FmbnRwdnp3aXBqY2xlcWJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzE2NjIsImV4cCI6MjA5MDQ0NzY2Mn0.J26k1VElLscwOxhGTBXpyw-OnXZ-BZOiBW5vCG3CreI';
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbx7VqQisAWUyHzjZ9kKZsXCFUioQGQceqjg96d1F8WNtTNW3Z12x08MCzMOAa9G4NwJ2A/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyfLcwXN7SYASRrpTmQswuqBR9HxrGVGyZHsMawActIu2P15ayc1z2cubybh2ZR7iUvZw/exec';
 
 const trabajadores = []; // Se cargan desde Supabase
 const tiposTrabajo = []; // Se cargan desde Supabase
@@ -266,7 +266,7 @@ async function loadTrabajadores() {
 
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/trabajadores?fecha_alta=lte.${fecha}&or=(fecha_baja.is.null,fecha_baja.gte.${fecha})&fincas=cs.{"La Carrasca"}&order=orden.asc,nombre.asc&select=nombre,alias,nombre_completo`,
+      `${SUPABASE_URL}/rest/v1/trabajadores?fecha_alta=lte.${fecha}&or=(fecha_baja.is.null,fecha_baja.gte.${fecha})&fincas=cs.{"La Carrasca"}&order=orden_carrasca.asc.nullslast,orden.asc,nombre.asc&select=nombre,alias,nombre_completo`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     if (res.ok) {
@@ -422,13 +422,10 @@ function addTarea() {
     <div class="tarea-section">Tipo de trabajo *</div>
     <div class="field-group" id="g-tipo-${n}">
       <div class="tipo-grid" id="tipo-grid-${n}">
-        ${tiposTrabajo.filter(t => t !== 'Ausente' && t !== 'No llamado' && t !== 'CASA').map(t =>
+        ${tiposTrabajo.filter(t => t !== 'Ausente' && t !== 'No llamado').map(t =>
           `<label class="opt-label tipo-opt" data-id="${n}" data-val="${t}"><input type="radio" name="tipo-${n}" value="${t}">${t}</label>`
         ).join('')}
         <label class="opt-label tipo-opt" data-id="${n}" data-val="__otro__"><input type="radio" name="tipo-${n}" value="__otro__">✏️ Otro</label>
-        ${tiposTrabajo.filter(t => t === 'CASA').map(t =>
-          `<label class="opt-label tipo-opt" data-id="${n}" data-val="${t}" style="border-color:#8e44ad;color:#6c3483;"><input type="radio" name="tipo-${n}" value="${t}">🏠 ${t}</label>`
-        ).join('')}
         ${tiposTrabajo.filter(t => t === 'Ausente' || t === 'No llamado').map(t =>
           `<label class="opt-label tipo-opt" data-id="${n}" data-val="${t}" style="border-color:#e74c3c;color:#c0392b;"><input type="radio" name="tipo-${n}" value="${t}">${t}</label>`
         ).join('')}
@@ -487,26 +484,47 @@ function addTarea() {
       otroInput.style.display = val === '__otro__' ? 'block' : 'none';
       if (val !== '__otro__') otroInput.value = '';
 
-      // Hide finca/cultivo/parcela/horas for Ausente, No llamado and CASA
+      // Hide finca/cultivo/parcela/horas for Ausente, No llamado
       const esAusencia = val === 'Ausente' || val === 'No llamado';
-      const esCasa = val === 'CASA';
-      ['g-finca', 'g-cultivo', 'g-parcela', 'g-horas'].forEach(g => {
-        const el = document.getElementById(`${g}-${id}`);
-        if (el) el.style.display = (esAusencia || esCasa) ? 'none' : '';
-      });
+      const esSoloFinca = val === 'Mantenimiento finca' || val === 'Mantenimiento Maquinaria/Vehículos';
+      const esInstalaciones = val === 'Mantenimiento instalaciones';
+
+      const gFinca = document.getElementById(`g-finca-${id}`);
+      const gCultivo = document.getElementById(`g-cultivo-${id}`);
+      const gParcela = document.getElementById(`g-parcela-${id}`);
+      const gHoras = document.getElementById(`g-horas-${id}`);
+
       if (esAusencia) {
+        if (gFinca) gFinca.style.display = 'none';
+        if (gCultivo) gCultivo.style.display = 'none';
+        if (gParcela) gParcela.style.display = 'none';
+        if (gHoras) gHoras.style.display = 'none';
         div.dataset.finca = 'N/A';
         div.dataset.cultivos = '["N/A"]';
         div.dataset.parcelas = '["N/A"]';
         const horasInput = document.getElementById(`horas-${id}`);
         if (horasInput) horasInput.value = '0';
-      } else if (esCasa) {
-        div.dataset.finca = 'CASA';
-        div.dataset.cultivos = '["CASA"]';
-        div.dataset.parcelas = '["CASA"]';
-        const horasInput = document.getElementById(`horas-${id}`);
-        if (horasInput) horasInput.value = '0';
+      } else if (esSoloFinca) {
+        if (gFinca) gFinca.style.display = '';
+        if (gCultivo) gCultivo.style.display = 'none';
+        if (gParcela) gParcela.style.display = 'none';
+        if (gHoras) gHoras.style.display = '';
+        div.dataset.cultivos = '["Todo"]';
+        div.dataset.parcelas = '["Todo"]';
+      } else if (esInstalaciones) {
+        if (gFinca) gFinca.style.display = '';
+        if (gCultivo) gCultivo.style.display = '';
+        if (gParcela) gParcela.style.display = '';
+        if (gHoras) gHoras.style.display = '';
+        div.dataset.cultivos = '[]';
+        div.dataset.parcelas = '[]';
+        const fincaActual = div.dataset.finca;
+        if (fincaActual) buildCultivoSelectorConTodo(n, fincaActual);
       } else {
+        if (gFinca) gFinca.style.display = '';
+        if (gCultivo) gCultivo.style.display = '';
+        if (gParcela) gParcela.style.display = '';
+        if (gHoras) gHoras.style.display = '';
         div.dataset.finca = '';
         div.dataset.cultivos = '[]';
         div.dataset.parcelas = '[]';
@@ -697,9 +715,22 @@ function validateForm() {
 
     const tipoVal = tipoChecked ? tipoChecked.dataset.val : '';
     const esAusencia = tipoVal === 'Ausente' || tipoVal === 'No llamado';
-    const esCasa = tipoVal === 'CASA';
+    const esSoloFinca = tipoVal === 'Mantenimiento finca' || tipoVal === 'Mantenimiento Maquinaria/Vehículos';
 
-    if (!esAusencia && !esCasa) {
+    if (esAusencia) {
+      ['g-finca', 'g-cultivo', 'g-parcela', 'g-horas'].forEach(g => {
+        document.getElementById(`${g}-${id}`)?.classList.remove('field-error');
+      });
+    } else if (esSoloFinca) {
+      if (!row.dataset.finca) { document.getElementById(`g-finca-${id}`)?.classList.add('field-error'); valid = false; }
+      else { document.getElementById(`g-finca-${id}`)?.classList.remove('field-error'); }
+      document.getElementById(`g-cultivo-${id}`)?.classList.remove('field-error');
+      document.getElementById(`g-parcela-${id}`)?.classList.remove('field-error');
+      const horasInput = document.getElementById(`horas-${id}`);
+      const gHoras = document.getElementById(`g-horas-${id}`);
+      if (!horasInput?.value || parseFloat(horasInput.value) <= 0) { gHoras?.classList.add('field-error'); valid = false; }
+      else { gHoras?.classList.remove('field-error'); }
+    } else {
       if (!row.dataset.finca) { document.getElementById(`g-finca-${id}`)?.classList.add('field-error'); valid = false; }
       else { document.getElementById(`g-finca-${id}`)?.classList.remove('field-error'); }
 
@@ -713,10 +744,6 @@ function validateForm() {
       const gHoras = document.getElementById(`g-horas-${id}`);
       if (!horasInput?.value || parseFloat(horasInput.value) <= 0) { gHoras.classList.add('field-error'); valid = false; }
       else { gHoras.classList.remove('field-error'); }
-    } else {
-      ['g-finca', 'g-cultivo', 'g-parcela', 'g-horas'].forEach(g => {
-        document.getElementById(`${g}-${id}`)?.classList.remove('field-error');
-      });
     }
   });
 
@@ -791,7 +818,7 @@ async function saveToSupabase(parte) {
     const promises = [];
     parte.trabajadoresCompletos.forEach(t => {
       parte.tareas.forEach(tarea => {
-        promises.push(fetch(`${SUPABASE_URL}/rest/v1/partes_trabajo_carrasca`, {
+        promises.push(fetch(`${SUPABASE_URL}/rest/v1/partes_trabajo`, {
           method: 'POST',
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
           body: JSON.stringify({
@@ -837,7 +864,7 @@ async function confirmAndSend() {
   btn.disabled = false;
   document.getElementById('reviewOverlay').classList.remove('show');
   document.getElementById('success-msg').textContent = savedDB
-    ? '✅ Parte registrado. Tienes 30 minutos para modificarlo si es necesario.'
+    ? '✅ Parte registrado. Tienes 10 minutos para modificarlo si es necesario.'
     : '⚠️ Hubo un problema al guardar. Contacta con la oficina.';
   document.getElementById('successOverlay').classList.add('show');
   window._parteData = null;
@@ -952,12 +979,12 @@ let parteEditando = null;
 
 async function loadPartesPendientes() {
   try {
-    const fecha = document.getElementById('fecha').value || today;
     const ahora = new Date();
-    const hace30 = new Date(ahora.getTime() - 30 * 60 * 1000).toISOString();
+    const hace10 = new Date(ahora.getTime() - 10 * 60 * 1000).toISOString();
+    const fecha = document.getElementById('fecha').value || today;
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/partes_trabajo_carrasca?enviado_sheets=eq.false&fecha=eq.${fecha}&created_at=gte.${hace30}&order=created_at.desc&select=*`,
+      `${SUPABASE_URL}/rest/v1/partes_trabajo_carrasca?enviado_sheets=eq.false&fecha=eq.${fecha}&created_at=gte.${hace10}&order=created_at.desc&select=*`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     if (!res.ok) return;
@@ -974,7 +1001,7 @@ async function loadPartesPendientes() {
     card.style.display = 'block';
     list.innerHTML = partesPendientes.map(p => {
       const created = new Date(p.created_at);
-      const expira = new Date(created.getTime() + 30 * 60 * 1000);
+      const expira = new Date(created.getTime() + 10 * 60 * 1000);
       const minRestantes = Math.max(0, Math.round((expira - ahora) / 60000));
       const alias = trabajadores.find(t => (typeof t === 'object' ? t.nombre : t) === p.trabajador);
       const nombreMostrar = typeof alias === 'object' ? (alias.alias || alias.nombre) : p.trabajador;
