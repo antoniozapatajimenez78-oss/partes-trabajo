@@ -245,7 +245,7 @@
 <script>
 const SUPABASE_URL = 'https://jecqfntpvzwipjcleqbl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplY3FmbnRwdnp3aXBqY2xlcWJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzE2NjIsImV4cCI6MjA5MDQ0NzY2Mn0.J26k1VElLscwOxhGTBXpyw-OnXZ-BZOiBW5vCG3CreI';
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxTV_vmNl0LfSGZeTMyiszf-WCcFashhj7jvkzBsAzXaC97y7VoyWCLfQMWnPNyCPV1/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbw29uVXqh_Q5h9CIOshGmV38TiI4sINfO_HYOzZTW1qiBZxASk-qEOXp7my84SixQHC/exec';
 
 const trabajadores = []; // Se cargan desde Supabase
 const tiposTrabajo = []; // Se cargan desde Supabase
@@ -864,7 +864,7 @@ async function confirmAndSend() {
   btn.disabled = false;
   document.getElementById('reviewOverlay').classList.remove('show');
   document.getElementById('success-msg').textContent = savedDB
-    ? '✅ Parte registrado. Tienes 30 minutos para modificarlo si es necesario.'
+    ? '✅ Parte registrado. Tienes 10 minutos para modificarlo si es necesario.'
     : '⚠️ Hubo un problema al guardar. Contacta con la oficina.';
   document.getElementById('successOverlay').classList.add('show');
   window._parteData = null;
@@ -980,11 +980,11 @@ let parteEditando = null;
 async function loadPartesPendientes() {
   try {
     const ahora = new Date();
-    const hace30 = new Date(ahora.getTime() - 30 * 60 * 1000).toISOString();
+    const hace10 = new Date(ahora.getTime() - 10 * 60 * 1000).toISOString();
     const fecha = document.getElementById('fecha').value || today;
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/partes_trabajo?enviado_sheets=eq.false&fecha=eq.${fecha}&created_at=gte.${hace30}&order=created_at.desc&select=*`,
+      `${SUPABASE_URL}/rest/v1/partes_trabajo?enviado_sheets=eq.false&fecha=eq.${fecha}&created_at=gte.${hace10}&order=created_at.desc&select=*`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     if (!res.ok) return;
@@ -1001,7 +1001,7 @@ async function loadPartesPendientes() {
     card.style.display = 'block';
     list.innerHTML = partesPendientes.map(p => {
       const created = new Date(p.created_at);
-      const expira = new Date(created.getTime() + 30 * 60 * 1000);
+      const expira = new Date(created.getTime() + 10 * 60 * 1000);
       const minRestantes = Math.max(0, Math.round((expira - ahora) / 60000));
       const alias = trabajadores.find(t => (typeof t === 'object' ? t.nombre : t) === p.trabajador);
       const nombreMostrar = typeof alias === 'object' ? (alias.alias || alias.nombre) : p.trabajador;
